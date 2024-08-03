@@ -1,0 +1,242 @@
+body {
+    font-family: Arial, sans-serif;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center center;
+    transition: background-image 1s ease-in-out;
+    overflow: hidden;
+}
+
+.navigation {
+    margin-bottom: 20px;
+}
+
+.navigation button {
+    margin-right: 10px;
+}
+
+#content {
+    padding: 70px;
+    height: auto; /* Adjust height as needed */
+    overflow-y: hidden;
+}
+
+.sidebar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100px;
+    height: 100%;
+    background-color: #b3bc70;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 50px;
+}
+
+.sidebar img {
+    width: 77px; /* Reduced size */
+    height: 70px; /* Reduced size */
+    margin-bottom: 70px; /* Reduced margin */
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.header {
+    position: absolute;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 60px;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;  
+    text-transform: uppercase;  
+    white-space: nowrap; 
+    letter-spacing: 5px;
+    color: white;
+}
+
+.container {
+    text-align: center;
+    margin-left: 100px; /* Adjust this value to accommodate the sidebar */
+    margin-top: 150px; /* Add margin-top to create space between the header and the container */
+}
+
+.mode-selector {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px; /* Add margin-top to create space between the header and the mode selector */
+}
+
+.mode-selector span {
+    cursor: pointer;
+    padding: 10px 20px;
+    border-radius: 20px;
+}
+
+#work.active {
+    background-color: #ff4c4c;
+    color: white;
+}
+
+#break {
+    color: white;
+}
+
+#break.highlighted {
+    background-color: #ff4c4c;
+    color: white;
+}
+
+.timer-circle {
+    margin: 20px 0;
+    border: 10px solid #ff4c4c;
+    border-radius: 50%;
+    width: 400px;
+    height: 400px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.timer {
+    font-size: 3em;
+}
+
+.controls button {
+    background-color: #ff4c4c;
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 5px;
+}
+
+.controls button:focus {
+    outline: none;
+}
+
+.controls button:active {
+    background-color: #e03b3b;
+}
+
+/* Media Queries for Responsiveness */
+@media (max-width: 1100px) {
+    .header {
+        font-size: 50px;
+    }
+
+    .container {
+        margin-left: 80px;
+        margin-top: 120px;
+    }
+
+    .timer-circle {
+        width: 300px;
+        height: 300px;
+    }
+
+    .timer {
+        font-size: 2.5em;
+    }
+}
+
+@media (max-width: 800px) {
+    .header {
+        font-size: 40px;
+    }
+
+    .container {
+        margin-left: 60px;
+        margin-top: 100px;
+    }
+
+    .timer-circle {
+        width: 250px;
+        height: 250px;
+    }
+
+    .timer {
+        font-size: 2em;
+    }
+}
+
+@media (max-width: 600px) {
+    .header {
+        font-size: 30px;
+    }
+
+    .sidebar {
+        width: 80px;
+    }
+
+    .sidebar img {
+        width: 60px;
+        height: 60px;
+        margin-bottom: 50px;
+    }
+
+    .container {
+        margin-left: 50px;
+        margin-top: 80px;
+    }
+
+    .mode-selector span {
+        padding: 8px 15px;
+    }
+
+    .timer-circle {
+        width: 200px;
+        height: 200px;
+    }
+
+    .timer {
+        font-size: 1.5em;
+    }
+
+    .controls button {
+        padding: 8px 15px;
+        margin: 3px;
+    }
+}
+
+@media (max-width: 400px) {
+    .header {
+        font-size: 25px;
+    }
+
+    .sidebar {
+        width: 60px;
+    }
+
+    .sidebar img {
+        width: 50px;
+        height: 50px;
+        margin-bottom: 40px;
+    }
+
+    .container {
+        margin-left: 40px;
+        margin-top: 60px;
+    }
+
+    .mode-selector span {
+        padding: 5px 10px;
+    }
+
+    .timer-circle {
+        width: 150px;
+        height: 150px;
+    }
+
+    .timer {
+        font-size: 1.2em;
+    }
+
+    .controls button {
+        padding: 6px 10px;
+        margin: 2px;
+    }
+}
