@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- <div class="header">VIRTUAL STUDY ROOM</div> -->
+        <div class="mode-selector">
+            <span id="work" class="active">work</span>
+            <span id="break">break</span>
+        </div>
+        <div class="timer-circle">
+            <div class="timer">
+                <span id="minutes">45</span>:<span id="seconds">00</span>
+            </div>
+        </div>
+        <div class="controls">
+            <button id="start" onclick="start()">Start</button>
+            <button id="pause" onclick="pause()" style="display: none;">Pause</button>
+            <button id="reset" onclick="reset()" style="display: none;">Reset</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

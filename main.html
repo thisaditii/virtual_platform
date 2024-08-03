@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Study Platform</title>
+    <link rel="stylesheet" href="../main/main.css">
+    <link rel="stylesheet" href="../timer/timer.css"> <!-- Include timer CSS -->
+</head>
+<body>
+    <div class="sidebar">
+        <img src="todo.png" alt="To-Do" id="btn-todo">
+        <img src="video.png" alt="Video Call" id="btn-videocall">
+        <img src="timer.png" alt="Timer" id="btn-timer">
+        <img src="home.gif" alt="Home" id="btn-home">
+    </div>
+    
+    <div id="content">
+        <div class="header">VIRTUAL STUDY ROOM</div>
+        <!-- Include the timer HTML directly -->
+        <div class="container">
+            <div class="mode-selector">
+                <span id="work" class="active">work</span>
+                <span id="break">break</span>
+            </div>
+            <div class="timer-circle">
+                <div class="timer">
+                    <span id="minutes">45</span>:<span id="seconds">00</span>
+                </div>
+            </div>
+            <div class="controls">
+                <button id="start" onclick="start()">Start</button>
+                <button id="pause" onclick="pause()" style="display: none;">Pause</button>
+                <button id="reset" onclick="reset()" style="display: none;">Reset</button>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <script src="../main/main.js"></script>
+    <script src="../timer/timer.js"></script> <!-- Include timer JS -->
+</body>
+</html>
