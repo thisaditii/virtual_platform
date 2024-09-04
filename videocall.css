@@ -165,16 +165,16 @@
     scrollbar-color: var(--main-color) var(--message-bg); 
   }
   .chat-area::-webkit-scrollbar {
-    width: 8px; /* Width of the scrollbar */
+    width: 8px; 
 }
 
 .chat-area::-webkit-scrollbar-thumb {
-    background-color: var(--main-color); /* Color of the scrollbar thumb */
-    border-radius: 4px; /* Rounded corners for the scrollbar thumb */
+    background-color: var(--main-color); 
+    border-radius: 4px; 
 }
 
 .chat-area::-webkit-scrollbar-track {
-    background-color: var(--message-bg); /* Color of the scrollbar track */
+    background-color: var(--message-bg); 
 }
   
   .profile-picture {
@@ -239,57 +239,7 @@
     }
   }
   
-  /* .message-file {
-    border: 1px solid var(--message-bg);
-    width: 100%;
-    margin-top: 16px;
-    border-radius: 4px;
-    padding: 8px;
-    display: flex;
-    
-    .sketch {
-      border-radius: 4px;
-      padding: 2px;
-      background-color: #fdeee2;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 32px;
-      height: 32px;
-      
-      svg {
-        width: 20px;
-        height: 20px;
-      }
-    }
-  }
-   */
-  /* .file-info {
-    flex: 1;
-    padding: 0 40px 0 8px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%23b8b8b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='feather feather-download' viewBox='0 0 24 24'%3E%3Cpath d='M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3'/%3E%3C/svg%3E%0A");
-    background-position: center right 12px;
-    background-size: 20px;
-    background-repeat: no-repeat;
-    font-size: 12px;
-  }
-  
-  .file-name {
-    color: var(--message-text);
-  }
-  
-  .file-size {
-    color: #b8b8b8;
-  }
-  
-  .mention {
-    color: #7c80fd;
-  }
-  
-  .chat-typing-area-wrapper {
-    padding: 16px;
-  }
-   */
+
   .chat-typing-area {
     display: flex;
     border-radius: 10px;
