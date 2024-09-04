@@ -2,7 +2,7 @@ document.getElementById('btn-timer').addEventListener('click', () => loadCompone
 document.getElementById('btn-todo').addEventListener('click', () => loadTodoComponent());
 document.getElementById('btn-videocall').addEventListener('click', () => loadComponent('videocall'));
 document.getElementById('btn-home').addEventListener('click', () => {
-    window.location.href = 'main.html'; // Adjust the path if needed
+    window.location.href = 'main.html'; 
 });
 
 function loadComponent(component) {
@@ -13,12 +13,12 @@ function loadComponent(component) {
         .then(html => {
             contentDiv.innerHTML = html;
 
-            // Load JS file
+      
             const script = document.createElement('script');
             script.src = `../${component}/${component}.js`;
             contentDiv.appendChild(script);
 
-            // Load CSS file
+       
             const link = document.createElement('link');
             link.rel = 'stylesheet';
             link.href = `../${component}/${component}.css`;
@@ -34,13 +34,10 @@ function loadTodoComponent() {
         .then(response => response.text())
         .then(html => {
             contentDiv.innerHTML = html;
-
-            // Load JS files from build folder
             const script = document.createElement('script');
             script.src = '../todo/build/static/js/main.02aad3c1.js';
             contentDiv.appendChild(script);
 
-            // Load CSS files from build folder
             const link = document.createElement('link');
             link.rel = 'stylesheet';
             link.href = '../todo/build/static/css/main.2aa96ae7.css';
