@@ -1,0 +1,25 @@
+# Python specific ignores
+__pycache__/
+*.pyc
+.Python/
+venv/
+.env # Local environment variables
+
+# Node.js / React specific ignores (from your todo app)
+node_modules/
+build/ # If your React build outputs to a 'build' folder in the root, otherwise it's already under static/todo/build
+.parcel-cache/ # If you use Parcel bundler
+.webpack/ # If you use Webpack
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database ignores
+users.db # Your SQLite database file
+
+# IDE specific ignores (VS Code)
+.vscode/
+
+# Operating System junk
+.DS_Store # macOS specific
+Thumbs.db # Windows specific

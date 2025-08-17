@@ -1,0 +1,25 @@
+<div class="videocall-wrapper"> 
+    <div id="video-streams" class="video-grid"></div> 
+    
+    <div id="whiteboard-container" style="display: none;">
+        <div id="whiteboard-content">
+            <canvas id="whiteboard-canvas"></canvas>
+            <div id="whiteboard-controls">
+                <div class="color-box active" data-color="#000000" style="background-color: black;"></div>
+                <div class="color-box" data-color="#FF0000" style="background-color: red;"></div>
+                <div class="color-box" data-color="#0000FF" style="background-color: blue;"></div>
+                <div class="color-box" data-color="#00FF00" style="background-color: green;"></div>
+                <div class="color-box" data-color="#FFFF00" style="background-color: yellow;"></div>
+                <div class="color-box" data-color="#FF69B4" style="background-color: rgb(166, 4, 230);"></div> 
+                <button id="clear-whiteboard-btn" class="clear-btn">Clear Whiteboard</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="video-controls"> 
+        <button class="control-btn" id="mic-btn"><i data-lucide="mic"></i></button> 
+        <button class="control-btn" id="camera-btn"><i data-lucide="video"></i></button> 
+        <button class="control-btn leave" id="leave-btn"><i data-lucide="phone-off"></i></button> 
+        <button class="control-btn" id="whiteboard-toggle-btn" title="Toggle Whiteboard"><i data-lucide="pen-tool"></i></button>
+    </div> 
+</div>
