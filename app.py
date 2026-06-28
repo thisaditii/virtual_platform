@@ -20,10 +20,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-
-with app.app_context():
-    db.create_all()
-
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = '/'
@@ -33,13 +29,19 @@ socketio = SocketIO(app, async_mode='eventlet')
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
+    # FIXED: Increased length to 256 to stop PostgreSQL from crashing on modern secure hashes
+    password_hash = db.Column(db.String(256), nullable=False)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+# FIXED: Dropping old tables ensures the new 256-character column rule actually takes effect on Render
+with app.app_context():
+    db.drop_all() 
+    db.create_all()
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -158,5 +160,4 @@ def internal_server_error(e):
     return render_template('500.html'), 500
 
 if __name__ == '__main__':
-    # Local fallback execution context
     socketio.run(app, debug=True)
