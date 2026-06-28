@@ -164,38 +164,72 @@ document.addEventListener('DOMContentLoaded', () => {
         loginView.style.display = 'block'; 
     });
 
-    // FIXED: Added e and e.preventDefault() to block form browser refreshes
+    // SIGNUP SUBMIT WITH ROBUST ERROR CATCHING
     signupSubmitBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         const username = signupUsernameInput.value;
         const password = signupPasswordInput.value;
-        const response = await fetch('/api/signup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
-        const data = await response.json();
-        showMessage(data.message, response.ok ? 'success' : 'error'); 
-        if (response.ok) {
-            signupView.style.display = 'none';
-            loginView.style.display = 'block';
+        
+        if (!username || !password) {
+            showMessage("Please fill in all fields.", "error");
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new Error(`Server returned status ${response.status} (Not JSON)`);
+            }
+
+            const data = await response.json();
+            showMessage(data.message, response.ok ? 'success' : 'error'); 
+            if (response.ok) {
+                signupView.style.display = 'none';
+                loginView.style.display = 'block';
+            }
+        } catch (error) {
+            console.error("Signup error:", error);
+            showMessage(`Signup Failed: ${error.message}`, 'error');
         }
     });
 
-    // FIXED: Added e and e.preventDefault() to block form browser refreshes
+    // LOGIN SUBMIT WITH ROBUST ERROR CATCHING
     loginSubmitBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         const username = loginUsernameInput.value;
         const password = loginPasswordInput.value;
-        const response = await fetch('/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
-        const data = await response.json();
-        showMessage(data.message, response.ok ? 'success' : 'error'); 
-        if (response.ok) {
-            await checkAuthAndLoadContent(); 
+
+        if (!username || !password) {
+            showMessage("Please fill in all fields.", "error");
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new Error(`Server returned status ${response.status} (Not JSON)`);
+            }
+
+            const data = await response.json();
+            showMessage(data.message, response.ok ? 'success' : 'error'); 
+            if (response.ok) {
+                await checkAuthAndLoadContent(); 
+            }
+        } catch (error) {
+            console.error("Login error:", error);
+            showMessage(`Login Failed: ${error.message}`, 'error');
         }
     });
 
@@ -334,32 +368,109 @@ document.addEventListener('DOMContentLoaded', () => {
         }).catch(error => console.error("Failed to load video call:", error));
     }
 
+    // UPDATED NATIVE TO-DO SYSTEM WITH FLASK DATABASE SYNC
     function loadTodo() {
         clearContent();
-        fetch('/components/todo.html').then(res => { 
-            if (!res.ok) {
-                if (res.status === 401) {
-                    showMessage("You need to be logged in to access the todo list.", 'error');
-                    checkAuthAndLoadContent();
-                    return Promise.reject('Unauthorized access');
-                }
-                showMessage(`Error loading todo: ${res.statusText}`, 'error');
-                return Promise.reject(new Error(`HTTP error! status: ${res.status}`));
+        
+        contentDiv.innerHTML = `
+            <div class="todo-container" style="max-width: 500px; margin: 40px auto; padding: 20px; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border-radius: 12px; color: white; font-family: 'Inter', sans-serif;">
+                <h2 style="margin-bottom: 20px; text-align: center;">Your Tasks</h2>
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <input type="text" id="todo-input" placeholder="Add a new task..." style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white; outline: none;">
+                    <button id="add-todo-btn" style="padding: 10px 20px; background: #03DAC6; border: none; border-radius: 6px; color: black; font-weight: bold; cursor: pointer;">Add</button>
+                </div>
+                <ul id="todo-list-items" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px;">
+                    <li style="text-align: center; color: rgba(255,255,255,0.5);">Loading your tasks...</li>
+                </ul>
+            </div>
+        `;
+
+        const todoInput = document.getElementById('todo-input');
+        const addTodoBtn = document.getElementById('add-todo-btn');
+        const todoListItems = document.getElementById('todo-list-items');
+
+        async function fetchTasks() {
+            try {
+                const response = await fetch('/api/todos');
+                if (!response.ok) throw new Error("Could not load tasks.");
+                const tasks = await response.json();
+                renderTasks(tasks);
+            } catch (err) {
+                console.error(err);
+                todoListItems.innerHTML = `<li style="color: #CF6679; text-align: center;">Error loading tasks.</li>`;
             }
-            contentDiv.innerHTML = `<div id="root"></div>`;
+        }
 
-            const cssLink = document.createElement('link');
-            cssLink.rel = 'stylesheet';
-            cssLink.href = '/static/todo/build/static/css/main.2aa96ae7.css';
-            cssLink.className = 'component-style';
-            document.head.appendChild(cssLink);
+        function renderTasks(tasks) {
+            todoListItems.innerHTML = '';
+            if (tasks.length === 0) {
+                todoListItems.innerHTML = `<li style="text-align: center; color: rgba(255,255,255,0.4);">No pending tasks. Great job!</li>`;
+                return;
+            }
 
-            const script = document.createElement('script');
-            script.src = '/static/todo/build/static/js/main.02aad3c1.js';
-            script.className = 'component-script';
-            document.body.appendChild(script);
-            return null; 
-        }).catch(error => console.error("Failed to load todo:", error));
+            tasks.forEach(task => {
+                const li = document.createElement('li');
+                li.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255,255,255,0.08); border-radius: 6px;";
+                
+                const taskSpan = document.createElement('span');
+                taskSpan.textContent = task.task;
+                if (task.completed) {
+                    taskSpan.style.textDecoration = "line-through";
+                    taskSpan.style.opacity = "0.5";
+                }
+
+                const actionsDiv = document.createElement('div');
+                actionsDiv.style.display = "flex";
+                actionsDiv.style.gap = "8px";
+
+                const checkBtn = document.createElement('button');
+                checkBtn.innerHTML = task.completed ? "↩" : "✓";
+                checkBtn.style.cssText = "background: none; border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 4px; padding: 4px 8px; cursor: pointer;";
+                checkBtn.onclick = async () => {
+                    await fetch(`/api/todos/${task.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ completed: !task.completed })
+                    });
+                    fetchTasks();
+                };
+
+                const delBtn = document.createElement('button');
+                delBtn.innerHTML = "✕";
+                delBtn.style.cssText = "background: #CF6679; border: none; color: white; border-radius: 4px; padding: 4px 8px; cursor: pointer;";
+                delBtn.onclick = async () => {
+                    await fetch(`/api/todos/${task.id}`, { method: 'DELETE' });
+                    fetchTasks();
+                };
+
+                actionsDiv.appendChild(checkBtn);
+                actionsDiv.appendChild(delBtn);
+                li.appendChild(taskSpan);
+                li.appendChild(actionsDiv);
+                todoListItems.appendChild(li);
+            });
+        }
+
+        addTodoBtn.addEventListener('click', async () => {
+            const taskText = todoInput.value.trim();
+            if (!taskText) return;
+
+            try {
+                const response = await fetch('/api/todos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task: taskText })
+                });
+                if (response.ok) {
+                    todoInput.value = '';
+                    fetchTasks();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        fetchTasks();
     }
 
     function loadWhiteboard(roomId = null) {

@@ -11,7 +11,6 @@ app.config['SECRET_KEY'] = 'your_super_secret_key'
 
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'users.db'))
 
-# Render provides postgres:// URLs, but SQLAlchemy 1.4+ requires postgresql://
 if db_url and db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
@@ -24,13 +23,18 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = '/'
 
-socketio = SocketIO(app, async_mode='eventlet')
+# Configured to threading mode for optimal Gunicorn web layer compatibility
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
+# ==========================================
+# DATABASE MODELS
+# ==========================================
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
-    # FIXED: Increased length to 256 to stop PostgreSQL from crashing on modern secure hashes
     password_hash = db.Column(db.String(256), nullable=False)
+    # Relationship to automatically query user tasks
+    todos = db.relationship('TodoItem', backref='user', lazy=True, cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -38,15 +42,24 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-# FIXED: Dropping old tables ensures the new 256-character column rule actually takes effect on Render
+class TodoItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    task = db.Column(db.String(200), nullable=False)
+    completed = db.Column(db.Boolean, default=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+# Re-run drop/create once to build the new TodoItem relationship schema on Render
 with app.app_context():
-    db.drop_all() 
+    db.drop_all()
     db.create_all()
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+# ==========================================
+# AUTHENTICATION ENDPOINTS
+# ==========================================
 @app.route('/api/signup', methods=['POST'])
 def signup_api():
     data = request.get_json()
@@ -92,6 +105,46 @@ def logout_api():
 def check_login_status():
     return jsonify({'logged_in': current_user.is_authenticated}), 200
 
+# ==========================================
+# TO-DO API PERSISTENCE BACKEND ENDPOINTS
+# ==========================================
+@app.route('/api/todos', methods=['GET', 'POST'])
+@login_required
+def manage_todos():
+    if request.method == 'GET':
+        user_todos = TodoItem.query.filter_by(user_id=current_user.id).all()
+        return jsonify([{'id': t.id, 'task': t.task, 'completed': t.completed} for t in user_todos]), 200
+        
+    elif request.method == 'POST':
+        data = request.get_json() or {}
+        task_text = data.get('task')
+        if not task_text:
+            return jsonify({'message': 'Task contents cannot be blank'}), 400
+        
+        new_todo = TodoItem(task=task_text, user_id=current_user.id)
+        db.session.add(new_todo)
+        db.session.commit()
+        return jsonify({'id': new_todo.id, 'task': new_todo.task, 'completed': new_todo.completed}), 201
+
+@app.route('/api/todos/<int:todo_id>', methods=['PUT', 'DELETE'])
+@login_required
+def alter_todo(todo_id):
+    todo = TodoItem.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
+    
+    if request.method == 'PUT':
+        data = request.get_json() or {}
+        todo.completed = data.get('completed', todo.completed)
+        db.session.commit()
+        return jsonify({'id': todo.id, 'task': todo.task, 'completed': todo.completed}), 200
+        
+    elif request.method == 'DELETE':
+        db.session.delete(todo)
+        db.session.commit()
+        return jsonify({'message': 'Task removed successfully.'}), 200
+
+# ==========================================
+# VIEWS & TEMPLATES
+# ==========================================
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -121,6 +174,9 @@ def get_whiteboard():
 def whiteboard(room_id):
     return render_template('components/whiteboard.html', room_id=room_id)
 
+# ==========================================
+# SOCKETS & GLOBAL ERROR HANDLING
+# ==========================================
 @socketio.on('join_whiteboard')
 def on_join(data):
     if not current_user.is_authenticated:
