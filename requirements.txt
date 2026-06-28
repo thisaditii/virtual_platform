@@ -1,0 +1,7 @@
+Flask
+gunicorn
+Flask-SQLAlchemy
+Flask-Login
+Flask-SocketIO
+eventlet
+psycopg2-binary

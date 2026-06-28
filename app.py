@@ -8,7 +8,18 @@ from werkzeug.security import generate_password_hash, check_password_hash
 basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_super_secret_key'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'users.db')
+
+# ==========================================
+# POSTGRESQL CONFIGURATION (OPTION B)
+# ==========================================
+# If DATABASE_URL is found (on Render), it uses PostgreSQL. Otherwise, it uses local SQLite.
+db_url = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'users.db'))
+
+# Render provides postgres:// URLs, but SQLAlchemy 1.4+ requires postgresql://
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -134,6 +145,19 @@ def on_leave(data):
         return
     room = data['room']
     leave_room(room)
+
+# ==========================================
+# FEATURE 3: GLOBAL ERROR HANDLERS & LOGGING
+# ==========================================
+@app.errorhandler(404)
+def page_not_found(e):
+    app.logger.warning(f"404 Error encountered: {e}")
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    app.logger.error(f"500 Internal Server Error: {e}")
+    return render_template('500.html'), 500
 
 if __name__ == '__main__':
     with app.app_context():
