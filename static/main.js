@@ -110,7 +110,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
     async function checkAuthAndLoadContent() {
         try {
             const response = await fetch('/api/check_login_status');
@@ -146,7 +145,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     checkAuthAndLoadContent();
 
-
     closeAuthModalBtn.addEventListener('click', () => {
         if (isLoggedIn) {
             authModal.style.display = 'none';
@@ -166,7 +164,9 @@ document.addEventListener('DOMContentLoaded', () => {
         loginView.style.display = 'block'; 
     });
 
-    signupSubmitBtn.addEventListener('click', async () => {
+    // FIXED: Added e and e.preventDefault() to block form browser refreshes
+    signupSubmitBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
         const username = signupUsernameInput.value;
         const password = signupPasswordInput.value;
         const response = await fetch('/api/signup', {
@@ -182,7 +182,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    loginSubmitBtn.addEventListener('click', async () => {
+    // FIXED: Added e and e.preventDefault() to block form browser refreshes
+    loginSubmitBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
         const username = loginUsernameInput.value;
         const password = loginPasswordInput.value;
         const response = await fetch('/api/login', {
@@ -247,7 +249,6 @@ document.addEventListener('DOMContentLoaded', () => {
     homeBtn.addEventListener('click', protectFeatureLoad(loadHomePage));
     timerBtn.addEventListener('click', protectFeatureLoad(loadTimer));
     todoBtn.addEventListener('click', protectFeatureLoad(loadTodo));
-
 
     function clearContent() {
         contentDiv.innerHTML = '';
