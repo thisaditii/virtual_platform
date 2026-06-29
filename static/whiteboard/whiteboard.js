@@ -1,93 +1,86 @@
 (function () {
-    let checkAttempts = 0;
+    setTimeout(() => {
+        const isEmbedded = !!document.querySelector('.videocall-wrapper');
+        const container = isEmbedded ? document.querySelector('.videocall-wrapper') : document.getElementById('whiteboard-container');
+        
+        if (!container) {
+            console.error("Whiteboard active container view not found.");
+            return;
+        }
 
-    function initWhiteboardEngine() {
-        // Look contextually inside the open wrapper view first to prevent duplicate ID mismatch conflicts
-        const container = document.querySelector('.videocall-wrapper') || document.getElementById('whiteboard-container') || document.body;
-        const canvas = container.querySelector('canvas') || document.getElementById('whiteboard-canvas');
+        const canvas = container.querySelector('canvas');
         const eraserBtn = container.querySelector('#eraser-btn');
         const downloadBtn = container.querySelector('#download-btn');
         const clearBtn = container.querySelector('#clear-whiteboard-btn');
 
-        // Polling guard: wait up to 5 seconds for single-page structural templates to finish async rendering
-        if (!canvas || !eraserBtn || !downloadBtn) {
-            if (checkAttempts < 50) {
-                checkAttempts++;
-                setTimeout(initWhiteboardEngine, 100);
-            } else {
-                console.warn("Whiteboard DOM elements not yet fully rendered.");
-            }
+        if (!canvas) {
+            console.error("Canvas element target missing.");
             return;
         }
 
         const ctx = canvas.getContext('2d');
-        let socket;
-        if (typeof io !== 'undefined') {
-            socket = io();
-        } else {
-            socket = { emit: () => {}, on: () => {}, off: () => {} };
-        }
+        let socket = (typeof io !== 'undefined') ? io() : { emit: () => {}, on: () => {} };
 
         let drawing = false;
         let isEraser = false;
         const current = { color: 'black', size: 5 };
         const activeRoom = sessionStorage.getItem('VSR_roomName') || 'global';
 
-        // --- Clean Button Listeners (Flush stale cloned events) ---
-        const freshEraserBtn = eraserBtn.cloneNode(true);
-        eraserBtn.parentNode.replaceChild(freshEraserBtn, eraserBtn);
+        // Set initial cursor style to draw brush crosshair
+        canvas.style.cursor = 'crosshair';
 
-        const freshDownloadBtn = downloadBtn.cloneNode(true);
-        downloadBtn.parentNode.replaceChild(freshDownloadBtn, downloadBtn);
-
-        const freshClearBtn = clearBtn ? clearBtn.cloneNode(true) : null;
-        if (clearBtn && freshClearBtn) {
-            clearBtn.parentNode.replaceChild(freshClearBtn, clearBtn);
+        // --- Eraser Toggle Controller with Visual Cursor Update ---
+        if (eraserBtn) {
+            eraserBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                isEraser = !isEraser;
+                if (isEraser) {
+                    eraserBtn.textContent = '✏️ Draw Mode';
+                    eraserBtn.style.background = '#CF6679'; 
+                    eraserBtn.style.color = 'white';
+                    
+                    // Visual Update: Changes mouse cursor to an eraser shape over the canvas layer
+                    canvas.style.cursor = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' style='font-size:24px'><text y='24'>🧽</text></svg>"), auto`;
+                } else {
+                    eraserBtn.textContent = '🧽 Eraser Mode';
+                    eraserBtn.style.background = 'rgba(255,255,255,0.15)';
+                    eraserBtn.style.color = 'white';
+                    
+                    // Revert back to crosshair
+                    canvas.style.cursor = 'crosshair';
+                }
+            });
         }
 
-        // --- Eraser Toggle Feature ---
-        freshEraserBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            isEraser = !isEraser;
-            if (isEraser) {
-                freshEraserBtn.textContent = '✏️ Draw Mode';
-                freshEraserBtn.style.background = '#CF6679'; 
-                freshEraserBtn.style.color = 'white';
-            } else {
-                freshEraserBtn.textContent = '🧽 Eraser Mode';
-                freshEraserBtn.style.background = 'rgba(255,255,255,0.15)';
-                freshEraserBtn.style.color = 'white';
-            }
-        });
+        // --- Snapshot / Save PNG Link System ---
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                
+                const exportCanvas = document.createElement('canvas');
+                exportCanvas.width = canvas.width;
+                exportCanvas.height = canvas.height;
+                const exportCtx = exportCanvas.getContext('2d');
+                
+                exportCtx.fillStyle = '#FFFFFF';
+                exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+                exportCtx.drawImage(canvas, 0, 0);
 
-        // --- Snapshot & PNG File Download System ---
-        freshDownloadBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            
-            const exportCanvas = document.createElement('canvas');
-            exportCanvas.width = canvas.width;
-            exportCanvas.height = canvas.height;
-            const exportCtx = exportCanvas.getContext('2d');
-            
-            // Draw a solid background so transparent pixels don't export as black
-            exportCtx.fillStyle = '#FFFFFF';
-            exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-            exportCtx.drawImage(canvas, 0, 0);
+                const dataUrl = exportCanvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.href = dataUrl;
+                link.download = `whiteboard-${activeRoom}-${Date.now()}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+        }
 
-            const dataUrl = exportCanvas.toDataURL('image/png');
-            const link = document.createElement('a');
-            link.href = dataUrl;
-            link.download = `whiteboard-snapshot-${activeRoom}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
-
-        // --- Color Changing Palette Sync ---
+        // --- Palette Colors Monitor ---
         container.querySelectorAll('.color-box').forEach(picker => {
             picker.addEventListener('click', (e) => {
-                if (isEraser) {
-                    freshEraserBtn.click(); // Turn off eraser mode when selecting a color
+                if (isEraser && eraserBtn) {
+                    eraserBtn.click(); // Reset eraser UI and cursor back to draw mode instantly
                 }
                 current.color = e.target.getAttribute('data-color') || e.target.style.backgroundColor || 'black';
                 container.querySelectorAll('.color-box').forEach(box => box.classList.remove('active'));
@@ -95,7 +88,7 @@
             });
         });
 
-        // --- Render Drawing and Erasing Lines ---
+        // --- Standard Stroke / Mask Compositor Core Drawing Core ---
         function drawLine(x0, y0, x1, y1, color, size, emitting, mode) {
             ctx.beginPath();
             ctx.moveTo(x0, y0);
@@ -107,7 +100,7 @@
 
             if (mode === 'erase') {
                 ctx.globalCompositeOperation = 'destination-out';
-                ctx.lineWidth = size * 8; // Slightly thicker stroke for an intuitive feel
+                ctx.lineWidth = size * 8; 
             } else {
                 ctx.globalCompositeOperation = 'source-over';
             }
@@ -129,63 +122,59 @@
             });
         }
 
-        // --- Canvas Coordinates Normalizer ---
-        function getCanvasMouseCoordinates(e) {
+        function onMouseDown(e) {
+            drawing = true;
             const rect = canvas.getBoundingClientRect();
-            return {
-                x: (e.clientX - rect.left) * (canvas.width / rect.width),
-                y: (e.clientY - rect.top) * (canvas.height / rect.height)
-            };
+            current.x = e.clientX - rect.left;
+            current.y = e.clientY - rect.top;
         }
 
-        canvas.addEventListener('mousedown', (e) => {
-            drawing = true;
-            const coordinates = getCanvasMouseCoordinates(e);
-            current.x = coordinates.x;
-            current.y = coordinates.y;
-        }, false);
-
-        canvas.addEventListener('mousemove', (e) => {
+        function onMouseMove(e) {
             if (!drawing) return;
-            const coordinates = getCanvasMouseCoordinates(e);
-            drawLine(current.x, current.y, coordinates.x, coordinates.y, current.color, current.size, true, isEraser ? 'erase' : 'draw');
-            current.x = coordinates.x;
-            current.y = coordinates.y;
-        }, false);
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
 
-        const stopDrawingSequence = () => { drawing = false; };
-        canvas.addEventListener('mouseup', stopDrawingSequence, false);
-        canvas.addEventListener('mouseout', stopDrawingSequence, false);
+            drawLine(current.x, current.y, x, y, current.color, current.size, true, isEraser ? 'erase' : 'draw');
+            current.x = x;
+            current.y = y;
+        }
 
-        // --- Synchronize incoming WebSockets cleanly ---
-        socket.off('drawing');
+        function onMouseUp() {
+            if (!drawing) return;
+            drawing = false;
+        }
+
+        canvas.addEventListener('mousedown', onMouseDown, false);
+        canvas.addEventListener('mouseup', onMouseUp, false);
+        canvas.addEventListener('mouseout', onMouseUp, false);
+        canvas.addEventListener('mousemove', onMouseMove, false);
+
         socket.on('drawing', (data) => {
             const w = canvas.width;
             const h = canvas.height;
             drawLine(data.x0 * w, data.y0 * h, data.x1 * w, data.y1 * h, data.color, data.size, false, data.mode);
         });
 
-        if (freshClearBtn) {
-            freshClearBtn.addEventListener('click', () => {
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 socket.emit('clear_whiteboard', { room: activeRoom });
             });
         }
 
-        socket.off('clear_whiteboard');
         socket.on('clear_whiteboard', () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         });
 
-        // --- Precise Canvas Resize Redraw Handler ---
-        function handleCanvasResize() {
+        window.addEventListener('resize', onResize, false);
+        function onResize() {
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = canvas.width;
             tempCanvas.height = canvas.height;
             const tempCtx = tempCanvas.getContext('2d');
             tempCtx.drawImage(canvas, 0, 0);
 
-            const isEmbedded = !!document.querySelector('.videocall-wrapper');
             if (isEmbedded) {
                 canvas.width = canvas.parentElement ? canvas.parentElement.clientWidth : 600;
                 canvas.height = 400;
@@ -194,11 +183,9 @@
                 canvas.width = calculatedWidth > 100 ? calculatedWidth : 800;
                 canvas.height = 500;
             }
+            
             ctx.drawImage(tempCanvas, 0, 0);
         }
-        window.addEventListener('resize', handleCanvasResize, false);
-        handleCanvasResize();
-    }
-
-    initWhiteboardEngine();
+        onResize();
+    }, 200);
 })();
