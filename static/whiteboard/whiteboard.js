@@ -1,16 +1,14 @@
 (function () {
-    // Force a minor delay to let the dynamic SPA view engine finish mounting the DOM nodes
     setTimeout(() => {
         const canvas = document.getElementById('whiteboard-canvas') || document.querySelector('canvas');
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
         
-        // SAFEGUARD: If io is not defined yet, fallback to a dummy object so the script NEVER crashes
         let socket;
         if (typeof io !== 'undefined') {
             socket = io();
         } else {
-            console.warn("Socket.IO client library is not loaded yet. Running in offline/fallback mode.");
+            console.warn("Socket.IO client library not found. Running in offline fallback mode.");
             socket = { emit: () => {}, on: () => {} };
         }
 
@@ -19,7 +17,6 @@
         const current = { color: 'black', size: 5 };
         const activeRoom = sessionStorage.getItem('VSR_roomName') || 'global';
 
-        // Targets your exact panel ID 'whiteboard-controls'
         let controlsBar = document.getElementById('whiteboard-controls') || document.querySelector('.controls-bar');
         if (!controlsBar) {
             const clearBtn = document.getElementById('clear-whiteboard-btn') || document.querySelector('.clear-btn');
@@ -28,23 +25,21 @@
             }
         }
         
-        // This block will now guaranteed execute because the script can't crash above
         if (controlsBar && !document.getElementById('eraser-btn')) {
-            // 1. Create Eraser / Draw Toggle Button
+            // 1. Create Eraser Button
             const eraserBtn = document.createElement('button');
             eraserBtn.id = 'eraser-btn';
             eraserBtn.textContent = '🧽 Eraser Mode';
-            eraserBtn.style.cssText = "background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; padding: 10px 20px; margin-left: 10px; cursor: pointer; font-weight: 600; font-family: 'Inter', sans-serif; border-radius: 8px; transition: background-color 0.2s;";
+            eraserBtn.style.cssText = "background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 10px 20px; margin-left: 10px; cursor: pointer; font-weight: 600; font-family: 'Inter', sans-serif; transition: background-color 0.2s;";
             controlsBar.appendChild(eraserBtn);
 
-            // 2. Create local PNG Download Button
+            // 2. Create Download Button
             const downloadBtn = document.createElement('button');
             downloadBtn.id = 'download-canvas-btn';
             downloadBtn.textContent = '📥 Download PNG';
             downloadBtn.style.cssText = "background: #BB86FC; color: black; border: none; border-radius: 8px; padding: 10px 20px; margin-left: 10px; cursor: pointer; font-weight: 600; font-family: 'Inter', sans-serif; transition: background-color 0.2s;";
             controlsBar.appendChild(downloadBtn);
 
-            // Toggle Eraser Logic
             eraserBtn.addEventListener('click', () => {
                 isEraser = !isEraser;
                 if (isEraser) {
@@ -58,7 +53,6 @@
                 }
             });
 
-            // Client-Side Local Download Tool
             downloadBtn.addEventListener('click', () => {
                 const exportCanvas = document.createElement('canvas');
                 exportCanvas.width = canvas.width;
@@ -79,9 +73,9 @@
             });
         }
 
-        // Color box selection logic
         document.querySelectorAll('.color-box, .color-picker').forEach(picker => {
             picker.addEventListener('click', (e) => {
+                const eraserBtn = document.getElementById('eraser-btn');
                 if (isEraser && eraserBtn) eraserBtn.click(); 
                 current.color = e.target.getAttribute('data-color') || e.target.style.backgroundColor || 'black';
                 
@@ -90,7 +84,6 @@
             });
         });
 
-        // Core Drawing Logic
         function drawLine(x0, y0, x1, y1, color, size, emitting, mode) {
             ctx.beginPath();
             ctx.moveTo(x0, y0);
@@ -172,15 +165,25 @@
 
         window.addEventListener('resize', onResize, false);
         function onResize() {
+            // Check if the canvas is embedded inside the videocall wrapper view
+            const isEmbedded = !!document.querySelector('.videocall-wrapper');
+            
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = canvas.width;
             tempCanvas.height = canvas.height;
             const tempCtx = tempCanvas.getContext('2d');
             tempCtx.drawImage(canvas, 0, 0);
 
-            const calculatedWidth = canvas.parentElement ? canvas.parentElement.clientWidth - 40 : 800;
-            canvas.width = calculatedWidth > 100 ? calculatedWidth : 800;
-            canvas.height = 500; 
+            if (isEmbedded) {
+                // Sizing for video calling grid overlay setup
+                canvas.width = canvas.parentElement ? canvas.parentElement.clientWidth : 600;
+                canvas.height = 400;
+            } else {
+                // Standalone component window sizing layouts
+                const calculatedWidth = canvas.parentElement ? canvas.parentElement.clientWidth - 40 : 800;
+                canvas.width = calculatedWidth > 100 ? calculatedWidth : 800;
+                canvas.height = 500;
+            }
             
             ctx.drawImage(tempCanvas, 0, 0);
         }
