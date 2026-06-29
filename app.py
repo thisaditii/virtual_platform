@@ -60,7 +60,6 @@ class WhiteboardSnapshot(db.Model):
 
 # CRITICAL FIX: Running drop_all once dynamically cleans out conflicting column parameters on Render
 with app.app_context():
-    db.drop_all()
     db.create_all()
 
 @login_manager.user_loader

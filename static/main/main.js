@@ -287,7 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.component-script, .component-style').forEach(el => el.remove());
     }
 
-    // UPDATED: Standard Welcome landing page appended with Live database metric strings
+    // UPDATED: Landing page with real-time relational analytics summary
     function loadHomePage() {
         clearContent();
         contentDiv.innerHTML = `
@@ -379,7 +379,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }).then(html => {
             contentDiv.innerHTML = html;
             
-            // Check for whiteboard sub-navigation trigger
             const whiteboardNavBtn = document.getElementById('btn-whiteboard') || document.querySelector('.wb-trigger');
             if (whiteboardNavBtn) {
                 whiteboardNavBtn.addEventListener('click', () => {
@@ -396,7 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }).catch(error => console.error("Failed to load video call:", error));
     }
 
-    // UPDATED: Interactive To-Do list UI built with category select nodes and color badge styling logic
+    // UPDATED: Interactive To-Do list layout with integrated priority selectors and badges
     function loadTodo() {
         clearContent();
         
@@ -525,7 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchTasks();
     }
 
-    // UPDATED: Standard template parser appended with canvas stream encoders and snapshot hooks
+    // UPDATED: Standard template parser appended with canvas serialization and cache-busted snapshot hydration hooks
     function loadWhiteboard(roomId = null) {
         clearContent();
         fetch(`/components/whiteboard.html${roomId ? '?room_id=' + roomId : ''}`).then(res => {
@@ -580,7 +579,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.lucide) window.lucide.createIcons();
             
             const script = document.createElement('script');
-            script.src = '/static/whiteboard/whiteboard.js'; 
+            // FIXED: Embedded string argument query token variations to bypass hard edge proxy caching loops
+            script.src = '/static/whiteboard/whiteboard.js?v=1.1'; 
             script.className = 'component-script';
             document.body.appendChild(script);
 
