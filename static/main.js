@@ -164,7 +164,6 @@ document.addEventListener('DOMContentLoaded', () => {
         loginView.style.display = 'block'; 
     });
 
-    // SIGNUP SUBMIT WITH ROBUST ERROR CATCHING
     signupSubmitBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         const username = signupUsernameInput.value;
@@ -199,7 +198,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // LOGIN SUBMIT WITH ROBUST ERROR CATCHING
     loginSubmitBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         const username = loginUsernameInput.value;
@@ -289,9 +287,29 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.component-script, .component-style').forEach(el => el.remove());
     }
 
+    // UPDATED: Landing page with real-time relational analytics summary
     function loadHomePage() {
         clearContent();
-        contentDiv.innerHTML = `<div class="welcome-container"><h1>Welcome to Your Study Room</h1></div>`;
+        contentDiv.innerHTML = `
+            <div class="welcome-container" style="text-align: center; color: white; font-family: 'Inter', sans-serif;">
+                <h1>Welcome to Your Study Room</h1>
+                <div id="home-analytics" style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.08); display: inline-block; border-radius: 8px; backdrop-filter: blur(5px);">
+                    <p style="margin: 0; color: rgba(255,255,255,0.7);">Loading dashboard metrics...</p>
+                </div>
+            </div>
+        `;
+
+        fetch('/api/todos/analytics')
+            .then(res => res.json())
+            .then(data => {
+                const analyticsDiv = document.getElementById('home-analytics');
+                if (data.high_priority_pending > 0) {
+                    analyticsDiv.innerHTML = `<p style="margin: 0; font-weight: 500; color: #CF6679;">⚠️ You have <strong>${data.high_priority_pending}</strong> High Priority tasks pending.</p>`;
+                } else {
+                    analyticsDiv.innerHTML = `<p style="margin: 0; color: #03DAC6;">✨ All clear! You have <strong>${data.total_pending}</strong> total tasks remaining.</p>`;
+                }
+            })
+            .catch(err => console.error("Error updating metrics view:", err));
     }
 
     function loadTimer() {
@@ -360,6 +378,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return res.text();
         }).then(html => {
             contentDiv.innerHTML = html;
+            
+            const whiteboardNavBtn = document.getElementById('btn-whiteboard') || document.querySelector('.wb-trigger');
+            if (whiteboardNavBtn) {
+                whiteboardNavBtn.addEventListener('click', () => {
+                    const activeRoom = sessionStorage.getItem('VSR_roomName') || 'global';
+                    loadWhiteboard(activeRoom);
+                });
+            }
+
             if (window.lucide) window.lucide.createIcons();
             const script = document.createElement('script');
             script.src = '/static/videocall/videocall.js';
@@ -368,15 +395,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }).catch(error => console.error("Failed to load video call:", error));
     }
 
-    // UPDATED NATIVE TO-DO SYSTEM WITH FLASK DATABASE SYNC
+    // UPDATED: Interactive To-Do list layout with integrated priority selectors and badges
     function loadTodo() {
         clearContent();
         
         contentDiv.innerHTML = `
-            <div class="todo-container" style="max-width: 500px; margin: 40px auto; padding: 20px; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border-radius: 12px; color: white; font-family: 'Inter', sans-serif;">
+            <div class="todo-container" style="max-width: 550px; margin: 40px auto; padding: 20px; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border-radius: 12px; color: white; font-family: 'Inter', sans-serif;">
                 <h2 style="margin-bottom: 20px; text-align: center;">Your Tasks</h2>
-                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <input type="text" id="todo-input" placeholder="Add a new task..." style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white; outline: none;">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <input type="text" id="todo-input" placeholder="Add a new task..." style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white; outline: none; min-width: 200px;">
+                    
+                    <select id="todo-priority" style="padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: white; outline: none; cursor: pointer;">
+                        <option value="Low">Low</option>
+                        <option value="Medium" selected>Medium</option>
+                        <option value="High">High</option>
+                    </select>
+                    
                     <button id="add-todo-btn" style="padding: 10px 20px; background: #03DAC6; border: none; border-radius: 6px; color: black; font-weight: bold; cursor: pointer;">Add</button>
                 </div>
                 <ul id="todo-list-items" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px;">
@@ -386,6 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         const todoInput = document.getElementById('todo-input');
+        const todoPriority = document.getElementById('todo-priority');
         const addTodoBtn = document.getElementById('add-todo-btn');
         const todoListItems = document.getElementById('todo-list-items');
 
@@ -412,12 +447,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 const li = document.createElement('li');
                 li.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255,255,255,0.08); border-radius: 6px;";
                 
+                const contentWrapper = document.createElement('div');
+                contentWrapper.style.cssText = "display: flex; align-items: center; gap: 10px;";
+
+                let badgeColor = '#BB86FC';
+                if (task.priority === 'High') badgeColor = '#CF6679';
+                if (task.priority === 'Low') badgeColor = '#03DAC6';
+
+                const priorityBadge = document.createElement('span');
+                priorityBadge.textContent = task.priority;
+                priorityBadge.style.cssText = `font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: ${badgeColor}; color: black;`;
+
                 const taskSpan = document.createElement('span');
                 taskSpan.textContent = task.task;
                 if (task.completed) {
                     taskSpan.style.textDecoration = "line-through";
                     taskSpan.style.opacity = "0.5";
+                    priorityBadge.style.opacity = "0.4";
                 }
+
+                contentWrapper.appendChild(priorityBadge);
+                contentWrapper.appendChild(taskSpan);
 
                 const actionsDiv = document.createElement('div');
                 actionsDiv.style.display = "flex";
@@ -445,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 actionsDiv.appendChild(checkBtn);
                 actionsDiv.appendChild(delBtn);
-                li.appendChild(taskSpan);
+                li.appendChild(contentWrapper);
                 li.appendChild(actionsDiv);
                 todoListItems.appendChild(li);
             });
@@ -453,13 +503,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         addTodoBtn.addEventListener('click', async () => {
             const taskText = todoInput.value.trim();
+            const selectedPriority = todoPriority.value;
             if (!taskText) return;
 
             try {
                 const response = await fetch('/api/todos', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ task: taskText })
+                    body: JSON.stringify({ task: taskText, priority: selectedPriority })
                 });
                 if (response.ok) {
                     todoInput.value = '';
@@ -473,6 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchTasks();
     }
 
+    // UPDATED: Standard template parser appended with canvas serialization and cache-busted snapshot hydration hooks
     function loadWhiteboard(roomId = null) {
         clearContent();
         fetch(`/components/whiteboard.html${roomId ? '?room_id=' + roomId : ''}`).then(res => {
@@ -488,11 +540,70 @@ document.addEventListener('DOMContentLoaded', () => {
             return res.text();
         }).then(html => {
             contentDiv.innerHTML = html;
+            
+            // DYNAMICALLY INJECT COMPONENT SNAPSHOT BUTTON
+            const controls = document.querySelector('.whiteboard-container, #whiteboard-controls, .controls-bar'); 
+            if (controls) {
+                const saveBtn = document.createElement('button');
+                saveBtn.id = 'save-canvas-btn';
+                saveBtn.textContent = '💾 Save Snapshot';
+                saveBtn.style.cssText = "background: #03DAC6; color: black; border: none; border-radius: 4px; padding: 6px 12px; margin-left: 10px; font-weight: bold; cursor: pointer;";
+                controls.appendChild(saveBtn);
+                
+                saveBtn.addEventListener('click', async () => {
+                    const canvas = document.querySelector('canvas');
+                    if (!canvas) return;
+                    
+                    const base64Data = canvas.toDataURL('image/png');
+                    const activeRoom = sessionStorage.getItem('VSR_roomName') || 'global';
+                    
+                    try {
+                        const response = await fetch('/api/whiteboard/save', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ image_data: base64Data, room_id: activeRoom })
+                        });
+                        const resData = await response.json();
+                        if (response.ok) {
+                            showMessage("Canvas snapshot saved!", "success");
+                        } else {
+                            showMessage(resData.message, "error");
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        showMessage("Failed to save canvas state to server", "error");
+                    }
+                });
+            }
+
             if (window.lucide) window.lucide.createIcons();
+            
             const script = document.createElement('script');
-            script.src = '/static/whiteboard/whiteboard.js'; 
+            // FIXED: Embedded string argument query token variations to bypass hard edge proxy caching loops
+            script.src = '/static/whiteboard/whiteboard.js?v=1.1'; 
             script.className = 'component-script';
             document.body.appendChild(script);
+
+            // AUTOMATIC SNAPSHOT RETRIEVAL INITIALIZATION HOOK
+            script.onload = function() {
+                const activeRoom = sessionStorage.getItem('VSR_roomName') || 'global';
+                fetch(`/api/whiteboard/load?room_id=${activeRoom}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.image_data) {
+                            const canvas = document.querySelector('canvas');
+                            const ctx = canvas ? canvas.getContext('2d') : null;
+                            if (ctx) {
+                                const img = new Image();
+                                img.onload = function() {
+                                    ctx.drawImage(img, 0, 0);
+                                };
+                                img.src = data.image_data;
+                            }
+                        }
+                    }).catch(e => console.error("Could not load whiteboard snapshot", e));
+            };
+
         }).catch(error => console.error("Failed to load whiteboard:", error));
     }
 
