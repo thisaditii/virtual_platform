@@ -35,6 +35,8 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     # Relationship to automatically query user tasks
     todos = db.relationship('TodoItem', backref='user', lazy=True, cascade="all, delete-orphan")
+    # UPDATED: Added relationship relationship cascade for persistent canvas snapshots
+    snapshots = db.relationship('WhiteboardSnapshot', backref='user', lazy=True, cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -46,11 +48,18 @@ class TodoItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     task = db.Column(db.String(200), nullable=False)
     completed = db.Column(db.Boolean, default=False)
+    priority = db.Column(db.String(20), default='Medium', nullable=False)  # FIXED: Added priority tracking column
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-# Re-run drop/create once to build the new TodoItem relationship schema on Render
+# UPDATED: Whiteboard Snapshot persistence tracking model setup
+class WhiteboardSnapshot(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    image_data = db.Column(db.Text, nullable=False)  # Stores serialized base64 string stream vectors
+    room_id = db.Column(db.String(100), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+# FIXED: Removed db.drop_all() to guarantee long-term data persistence across platform cycles
 with app.app_context():
-    db.drop_all()
     db.create_all()
 
 @login_manager.user_loader
@@ -113,18 +122,21 @@ def check_login_status():
 def manage_todos():
     if request.method == 'GET':
         user_todos = TodoItem.query.filter_by(user_id=current_user.id).all()
-        return jsonify([{'id': t.id, 'task': t.task, 'completed': t.completed} for t in user_todos]), 200
+        # FIXED: Returning priority properties alongside standard structural payloads
+        return jsonify([{'id': t.id, 'task': t.task, 'completed': t.completed, 'priority': t.priority} for t in user_todos]), 200
         
     elif request.method == 'POST':
         data = request.get_json() or {}
         task_text = data.get('task')
+        task_priority = data.get('priority', 'Medium')  # FIXED: Capture priority argument defaulting to Medium
+        
         if not task_text:
             return jsonify({'message': 'Task contents cannot be blank'}), 400
         
-        new_todo = TodoItem(task=task_text, user_id=current_user.id)
+        new_todo = TodoItem(task=task_text, priority=task_priority, user_id=current_user.id)
         db.session.add(new_todo)
         db.session.commit()
-        return jsonify({'id': new_todo.id, 'task': new_todo.task, 'completed': new_todo.completed}), 201
+        return jsonify({'id': new_todo.id, 'task': new_todo.task, 'completed': new_todo.completed, 'priority': new_todo.priority}), 201
 
 @app.route('/api/todos/<int:todo_id>', methods=['PUT', 'DELETE'])
 @login_required
@@ -135,12 +147,63 @@ def alter_todo(todo_id):
         data = request.get_json() or {}
         todo.completed = data.get('completed', todo.completed)
         db.session.commit()
-        return jsonify({'id': todo.id, 'task': todo.task, 'completed': todo.completed}), 200
+        return jsonify({'id': todo.id, 'task': todo.task, 'completed': todo.completed, 'priority': todo.priority}), 200
         
     elif request.method == 'DELETE':
         db.session.delete(todo)
         db.session.commit()
         return jsonify({'message': 'Task removed successfully.'}), 200
+
+# FIXED: Added aggregated metric endpoints to drive the Home Screen UI dashboard metrics
+@app.route('/api/todos/analytics', methods=['GET'])
+@login_required
+def get_todo_analytics():
+    high_priority_count = TodoItem.query.filter_by(
+        user_id=current_user.id, 
+        completed=False, 
+        priority='High'
+    ).count()
+    
+    total_pending = TodoItem.query.filter_by(user_id=current_user.id, completed=False).count()
+    
+    return jsonify({
+        'high_priority_pending': high_priority_count,
+        'total_pending': total_pending
+    }), 200
+
+# ==========================================
+# WHITEBOARD PERSISTENCE ENDPOINTS
+# ==========================================
+@app.route('/api/whiteboard/save', methods=['POST'])
+@login_required
+def save_whiteboard():
+    data = request.get_json() or {}
+    image_data = data.get('image_data')
+    room_id = data.get('room_id', 'global')
+
+    if not image_data:
+        return jsonify({'message': 'No snapshot vector data provided'}), 400
+
+    snapshot = WhiteboardSnapshot.query.filter_by(user_id=current_user.id, room_id=room_id).first()
+    
+    if snapshot:
+        snapshot.image_data = image_data
+    else:
+        snapshot = WhiteboardSnapshot(image_data=image_data, room_id=room_id, user_id=current_user.id)
+        db.session.add(snapshot)
+        
+    db.session.commit()
+    return jsonify({'message': 'Canvas state saved successfully!'}), 200
+
+@app.route('/api/whiteboard/load', methods=['GET'])
+@login_required
+def load_whiteboard_state():
+    room_id = request.args.get('room_id', 'global')
+    snapshot = WhiteboardSnapshot.query.filter_by(user_id=current_user.id, room_id=room_id).first()
+    
+    if snapshot:
+        return jsonify({'image_data': snapshot.image_data}), 200
+    return jsonify({'image_data': None}), 200
 
 # ==========================================
 # VIEWS & TEMPLATES
