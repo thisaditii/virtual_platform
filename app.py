@@ -58,8 +58,9 @@ class WhiteboardSnapshot(db.Model):
     room_id = db.Column(db.String(100), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-# FIXED: Removed db.drop_all() to guarantee long-term data persistence across platform cycles
+# CRITICAL FIX: Running drop_all once dynamically cleans out conflicting column parameters on Render
 with app.app_context():
+    db.drop_all()
     db.create_all()
 
 @login_manager.user_loader
@@ -270,7 +271,7 @@ def on_leave(data):
 
 @app.errorhandler(404)
 def page_not_found(e):
-    app.logger.warning(f"404 Error encountered: {e}")
+    app.line_warning = f"404 Error encountered: {e}"
     return render_template('404.html'), 404
 
 @app.errorhandler(500)

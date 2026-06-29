@@ -9,8 +9,14 @@
     const current = { color: 'black', size: 5 };
     const activeRoom = sessionStorage.getItem('VSR_roomName') || 'global';
 
-    // UI Elements Setup
-    const controlsBar = document.querySelector('.whiteboard-container, #whiteboard-controls, .controls-bar');
+    // ROBUST UI SELECTOR UPGRADE: Finds the exact black configuration bar seen on screen
+    let controlsBar = document.querySelector('.whiteboard-container, #whiteboard-controls, .controls-bar');
+    if (!controlsBar) {
+        const clearBtn = document.querySelector('.whiteboard-container button') || Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Clear'));
+        if (clearBtn) {
+            controlsBar = clearBtn.parentElement;
+        }
+    }
     
     if (controlsBar && !document.getElementById('eraser-btn')) {
         // 1. Create Eraser / Draw Toggle Button
@@ -43,7 +49,6 @@
 
         // Client-Side Local Download Tool
         downloadBtn.addEventListener('click', () => {
-            // Convert current viewport matrix into a static downloadable URL string
             const dataUrl = canvas.toDataURL('image/png');
             const link = document.createElement('a');
             link.href = dataUrl;
@@ -57,7 +62,8 @@
     // Color updates selector event mapping override
     document.querySelectorAll('.color-picker, [data-color]').forEach(picker => {
         picker.addEventListener('click', (e) => {
-            if (isEraser) eraserBtn.click(); // Reset to draw mode if they choose a color
+            const eraserBtn = document.getElementById('eraser-btn');
+            if (isEraser && eraserBtn) eraserBtn.click(); // Reset to draw mode if they choose a color
             current.color = e.target.getAttribute('data-color') || e.target.style.backgroundColor || 'black';
         });
     });
@@ -75,7 +81,7 @@
         // Advanced composite masking context rules
         if (mode === 'erase') {
             ctx.globalCompositeOperation = 'destination-out';
-            ctx.lineWidth = size * 4; // Make the eraser slightly larger for better user experience
+            ctx.lineWidth = size * 4; // Make eraser slightly larger
         } else {
             ctx.globalCompositeOperation = 'source-over';
         }
@@ -142,7 +148,6 @@
     // Window configuration scaling metrics mapping
     window.addEventListener('resize', onResize, false);
     function onResize() {
-        // Create an intermediate copy so window scaling adjustments don't instantly vaporize active states
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = canvas.width;
         tempCanvas.height = canvas.height;

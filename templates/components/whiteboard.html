@@ -10,16 +10,19 @@
         box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         border-radius: 20px;
         padding: 20px;
+        margin: 20px auto; /* Centers the card element in the content area container */
     }
     #whiteboard-canvas {
         background-color: white;
         border: 1px solid var(--border-color);
+        border-radius: 12px; /* Curves the canvas inside the panel layout */
         cursor: crosshair;
         touch-action: none; 
     }
     #whiteboard-controls {
         display: flex;
         justify-content: center;
+        align-items: center;
         gap: 15px;
         margin-top: 20px;
         flex-wrap: wrap;
@@ -33,12 +36,12 @@
         transition: transform 0.2s ease;
     }
     .color-box.active {
-        border-color: var(--accent-primary);
+        border-color: #BB86FC; /* Uses standard theme border color */
         transform: scale(1.1);
     }
     .clear-btn {
         background-color: #CF6679;
-        color: #812f2f;
+        color: white; /* Fixed hard-to-read text color contrast */
         border: none;
         padding: 10px 20px;
         border-radius: 8px;
@@ -51,17 +54,17 @@
     }
 </style>
 
-<div id="whiteboard-container">
+<div id="whiteboard-container" class="whiteboard-container">
     <canvas id="whiteboard-canvas"></canvas>
-    <div id="whiteboard-controls">
-        <div class="color-box active" data-color="#000000" style="background-color: black;"></div>
-        <div class="color-box" data-color="#FF0000" style="background-color: red;"></div>
-        <div class="color-box" data-color="#0000FF" style="background-color: blue;"></div>
-        <div class="color-box" data-color="#00FF00" style="background-color: green;"></div>
-        <div class="color-box" data-color="#FFFF00" style="background-color: yellow;"></div>
-        <div class="color-box" data-color="#FFFFFF" style="background-color: rgb(166, 4, 230);"></div>
+    <div id="whiteboard-controls" class="controls-bar">
+        <!-- class handles data styling alignment loops within whiteboard.js -->
+        <div class="color-box color-picker active" data-color="#000000" style="background-color: black;"></div>
+        <div class="color-box color-picker" data-color="#FF0000" style="background-color: red;"></div>
+        <div class="color-box color-picker" data-color="#0000FF" style="background-color: blue;"></div>
+        <div class="color-box color-picker" data-color="#00FF00" style="background-color: green;"></div>
+        <div class="color-box color-picker" data-color="#FFFF00" style="background-color: yellow;"></div>
+        <!-- FIXED: Matched purple hex value validation attributes -->
+        <div class="color-box color-picker" data-color="#A604E6" style="background-color: rgb(166, 4, 230);"></div>
         <button id="clear-whiteboard-btn" class="clear-btn">Clear Whiteboard</button>
     </div>
 </div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
