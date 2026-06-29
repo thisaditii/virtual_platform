@@ -1,17 +1,25 @@
 (function () {
-    // Wrap initialization in a minimal timeout to allow the dynamically injected HTML to settle inside the layout DOM
+    // Force a minor delay to let the dynamic SPA view engine finish mounting the DOM nodes
     setTimeout(() => {
         const canvas = document.getElementById('whiteboard-canvas') || document.querySelector('canvas');
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        const socket = (typeof io !== 'undefined') ? io() : { emit: () => {}, on: () => {} };
+        
+        // SAFEGUARD: If io is not defined yet, fallback to a dummy object so the script NEVER crashes
+        let socket;
+        if (typeof io !== 'undefined') {
+            socket = io();
+        } else {
+            console.warn("Socket.IO client library is not loaded yet. Running in offline/fallback mode.");
+            socket = { emit: () => {}, on: () => {} };
+        }
 
         let drawing = false;
-        let isEraser = false; // Tracks whether the user is drawing or erasing
+        let isEraser = false;
         const current = { color: 'black', size: 5 };
         const activeRoom = sessionStorage.getItem('VSR_roomName') || 'global';
 
-        // Finds the configuration control bar container from the template
+        // Targets your exact panel ID 'whiteboard-controls'
         let controlsBar = document.getElementById('whiteboard-controls') || document.querySelector('.controls-bar');
         if (!controlsBar) {
             const clearBtn = document.getElementById('clear-whiteboard-btn') || document.querySelector('.clear-btn');
@@ -20,19 +28,20 @@
             }
         }
         
+        // This block will now guaranteed execute because the script can't crash above
         if (controlsBar && !document.getElementById('eraser-btn')) {
             // 1. Create Eraser / Draw Toggle Button
             const eraserBtn = document.createElement('button');
             eraserBtn.id = 'eraser-btn';
             eraserBtn.textContent = '🧽 Eraser Mode';
-            eraserBtn.style.cssText = "background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; padding: 6px 12px; margin-left: 10px; cursor: pointer; font-weight: bold;";
+            eraserBtn.style.cssText = "background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; padding: 10px 20px; margin-left: 10px; cursor: pointer; font-weight: 600; font-family: 'Inter', sans-serif; border-radius: 8px; transition: background-color 0.2s;";
             controlsBar.appendChild(eraserBtn);
 
             // 2. Create local PNG Download Button
             const downloadBtn = document.createElement('button');
             downloadBtn.id = 'download-canvas-btn';
             downloadBtn.textContent = '📥 Download PNG';
-            downloadBtn.style.cssText = "background: #BB86FC; color: black; border: none; border-radius: 4px; padding: 6px 12px; margin-left: 10px; cursor: pointer; font-weight: bold;";
+            downloadBtn.style.cssText = "background: #BB86FC; color: black; border: none; border-radius: 8px; padding: 10px 20px; margin-left: 10px; cursor: pointer; font-weight: 600; font-family: 'Inter', sans-serif; transition: background-color 0.2s;";
             controlsBar.appendChild(downloadBtn);
 
             // Toggle Eraser Logic
@@ -40,7 +49,7 @@
                 isEraser = !isEraser;
                 if (isEraser) {
                     eraserBtn.textContent = '✏️ Draw Mode';
-                    eraserBtn.style.background = '#CF6679'; // Highlight red when erasing
+                    eraserBtn.style.background = '#CF6679'; 
                     eraserBtn.style.color = 'white';
                 } else {
                     eraserBtn.textContent = '🧽 Eraser Mode';
@@ -70,14 +79,12 @@
             });
         }
 
-        // Color updates selector event mapping override
+        // Color box selection logic
         document.querySelectorAll('.color-box, .color-picker').forEach(picker => {
             picker.addEventListener('click', (e) => {
-                const eraserBtn = document.getElementById('eraser-btn');
-                if (isEraser && eraserBtn) eraserBtn.click(); // Reset to draw mode if they choose a color
+                if (isEraser && eraserBtn) eraserBtn.click(); 
                 current.color = e.target.getAttribute('data-color') || e.target.style.backgroundColor || 'black';
                 
-                // Add visual active state adjustment classes
                 document.querySelectorAll('.color-box').forEach(box => box.classList.remove('active'));
                 e.target.classList.add('active');
             });
@@ -93,10 +100,9 @@
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
 
-            // Advanced composite masking context rules
             if (mode === 'erase') {
                 ctx.globalCompositeOperation = 'destination-out';
-                ctx.lineWidth = size * 6; // Make eraser slightly larger for smoother erasing mechanics
+                ctx.lineWidth = size * 6; 
             } else {
                 ctx.globalCompositeOperation = 'source-over';
             }
@@ -106,7 +112,6 @@
 
             if (!emitting) return;
 
-            // Propagate across WebSockets layer containing the brush rendering configuration mode
             socket.emit('drawing', {
                 x0: x0 / canvas.width,
                 y0: y0 / canvas.height,
@@ -142,20 +147,17 @@
             drawing = false;
         }
 
-        // Canvas Desktop Listener Attachments
         canvas.addEventListener('mousedown', onMouseDown, false);
         canvas.addEventListener('mouseup', onMouseUp, false);
         canvas.addEventListener('mouseout', onMouseUp, false);
         canvas.addEventListener('mousemove', onMouseMove, false);
 
-        // Incoming Real-time WebSocket Broadcast handler synchronization logic
         socket.on('drawing', (data) => {
             const w = canvas.width;
             const h = canvas.height;
             drawLine(data.x0 * w, data.y0 * h, data.x1 * w, data.y1 * h, data.color, data.size, false, data.mode);
         });
 
-        // Handle global canvas clear events
         const localClearBtn = document.getElementById('clear-whiteboard-btn');
         if (localClearBtn) {
             localClearBtn.addEventListener('click', () => {
@@ -168,7 +170,6 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         });
 
-        // Window configuration scaling metrics mapping
         window.addEventListener('resize', onResize, false);
         function onResize() {
             const tempCanvas = document.createElement('canvas');
@@ -177,7 +178,6 @@
             const tempCtx = tempCanvas.getContext('2d');
             tempCtx.drawImage(canvas, 0, 0);
 
-            // Fallback sizing parameters guard bounds if dimensions read 0 on immediate injection
             const calculatedWidth = canvas.parentElement ? canvas.parentElement.clientWidth - 40 : 800;
             canvas.width = calculatedWidth > 100 ? calculatedWidth : 800;
             canvas.height = 500; 
@@ -185,5 +185,5 @@
             ctx.drawImage(tempCanvas, 0, 0);
         }
         onResize();
-    }, 50);
+    }, 100);
 })();
