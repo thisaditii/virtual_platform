@@ -538,68 +538,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }).then(html => {
             contentDiv.innerHTML = html;
             
-            // DYNAMICALLY INJECT COMPONENT SNAPSHOT BUTTON
-            const controls = document.querySelector('.whiteboard-container, #whiteboard-controls, .controls-bar'); 
-            if (controls) {
-                const saveBtn = document.createElement('button');
-                saveBtn.id = 'save-canvas-btn';
-                saveBtn.textContent = '💾 Save Snapshot';
-                saveBtn.style.cssText = "background: #03DAC6; color: black; border: none; border-radius: 4px; padding: 6px 12px; margin-left: 10px; font-weight: bold; cursor: pointer;";
-                controls.appendChild(saveBtn);
-                
-                saveBtn.addEventListener('click', async () => {
-                    const canvas = document.querySelector('canvas');
-                    if (!canvas) return;
-                    
-                    const base64Data = canvas.toDataURL('image/png');
-                    const activeRoom = sessionStorage.getItem('VSR_roomName') || 'global';
-                    
-                    try {
-                        const response = await fetch('/api/whiteboard/save', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ image_data: base64Data, room_id: activeRoom })
-                        });
-                        const resData = await response.json();
-                        if (response.ok) {
-                            showMessage("Canvas snapshot saved!", "success");
-                        } else {
-                            showMessage(resData.message, "error");
-                        }
-                    } catch (err) {
-                        console.error(err);
-                        showMessage("Failed to save canvas state to server", "error");
-                    }
-                });
-            }
-
             if (window.lucide) window.lucide.createIcons();
             
             const script = document.createElement('script');
-            // FIXED: Synchronized parameter caching metrics to explicitly fetch cache version v=1.6
-            script.src = '/static/whiteboard/whiteboard.js?v=1.6'; 
+            script.src = '/static/whiteboard/whiteboard.js?v=' + Date.now(); 
             script.className = 'component-script';
             document.body.appendChild(script);
-
-            // AUTOMATIC SNAPSHOT RETRIEVAL INITIALIZATION HOOK
-            script.onload = function() {
-                const activeRoom = sessionStorage.getItem('VSR_roomName') || 'global';
-                fetch(`/api/whiteboard/load?room_id=${activeRoom}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.image_data) {
-                            const canvas = document.querySelector('canvas');
-                            const ctx = canvas ? canvas.getContext('2d') : null;
-                            if (ctx) {
-                                const img = new Image();
-                                img.onload = function() {
-                                    ctx.drawImage(img, 0, 0);
-                                };
-                                img.src = data.image_data;
-                            }
-                        }
-                    }).catch(e => console.error("Could not load whiteboard snapshot", e));
-            };
 
         }).catch(error => console.error("Failed to load whiteboard:", error));
     }
