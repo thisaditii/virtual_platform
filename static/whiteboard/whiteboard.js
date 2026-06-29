@@ -1,6 +1,6 @@
 (function () {
     setTimeout(() => {
-        const canvas = document.getElementById('whiteboard-canvas') || document.querySelector('canvas');
+        const canvas = document.getElementById('whiteboard-canvas');
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
         
@@ -8,7 +8,6 @@
         if (typeof io !== 'undefined') {
             socket = io();
         } else {
-            console.warn("Socket.IO client library not found. Running in offline fallback mode.");
             socket = { emit: () => {}, on: () => {} };
         }
 
@@ -17,48 +16,26 @@
         const current = { color: 'black', size: 5 };
         const activeRoom = sessionStorage.getItem('VSR_roomName') || 'global';
 
-        let controlsBar = document.getElementById('whiteboard-controls') || document.querySelector('.controls-bar');
-        if (!controlsBar) {
-            const clearBtn = document.getElementById('clear-whiteboard-btn') || document.querySelector('.clear-btn');
-            if (clearBtn) {
-                controlsBar = clearBtn.parentElement;
-            }
-        }
-        
-        if (controlsBar && !document.getElementById('eraser-btn')) {
-            // 1. Create Eraser Button
-            const eraserBtn = document.createElement('button');
-            eraserBtn.id = 'eraser-btn';
-            eraserBtn.textContent = '🧽 Eraser Mode';
-            eraserBtn.style.cssText = "background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 10px 20px; margin-left: 10px; cursor: pointer; font-weight: 600; font-family: 'Inter', sans-serif; transition: background-color 0.2s;";
-            controlsBar.appendChild(eraserBtn);
+        // --- Eraser & Download Logic ---
+        const eraserBtn = document.getElementById('eraser-btn');
+        const downloadBtn = document.getElementById('download-btn');
 
-            // 2. Create Download Button
-            const downloadBtn = document.createElement('button');
-            downloadBtn.id = 'download-canvas-btn';
-            downloadBtn.textContent = '📥 Download PNG';
-            downloadBtn.style.cssText = "background: #BB86FC; color: black; border: none; border-radius: 8px; padding: 10px 20px; margin-left: 10px; cursor: pointer; font-weight: 600; font-family: 'Inter', sans-serif; transition: background-color 0.2s;";
-            controlsBar.appendChild(downloadBtn);
-
+        if (eraserBtn) {
             eraserBtn.addEventListener('click', () => {
                 isEraser = !isEraser;
-                if (isEraser) {
-                    eraserBtn.textContent = '✏️ Draw Mode';
-                    eraserBtn.style.background = '#CF6679'; 
-                    eraserBtn.style.color = 'white';
-                } else {
-                    eraserBtn.textContent = '🧽 Eraser Mode';
-                    eraserBtn.style.background = 'rgba(255,255,255,0.15)';
-                    eraserBtn.style.color = 'white';
-                }
+                eraserBtn.textContent = isEraser ? '✏️ Draw Mode' : '🧽 Eraser Mode';
+                eraserBtn.style.background = isEraser ? '#CF6679' : 'rgba(255,255,255,0.15)';
             });
+        }
 
+        if (downloadBtn) {
             downloadBtn.addEventListener('click', () => {
                 const exportCanvas = document.createElement('canvas');
                 exportCanvas.width = canvas.width;
                 exportCanvas.height = canvas.height;
                 const exportCtx = exportCanvas.getContext('2d');
                 
+                // Fill white background so the saved image isn't transparent
                 exportCtx.fillStyle = 'white';
                 exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
                 exportCtx.drawImage(canvas, 0, 0);
@@ -66,39 +43,23 @@
                 const dataUrl = exportCanvas.toDataURL('image/png');
                 const link = document.createElement('a');
                 link.href = dataUrl;
-                link.download = `study-room-whiteboard-${activeRoom}.png`;
-                document.body.appendChild(link);
+                link.download = `whiteboard-${activeRoom}.png`;
                 link.click();
-                document.body.removeChild(link);
             });
         }
 
-        document.querySelectorAll('.color-box, .color-picker').forEach(picker => {
-            picker.addEventListener('click', (e) => {
-                const eraserBtn = document.getElementById('eraser-btn');
-                if (isEraser && eraserBtn) eraserBtn.click(); 
-                current.color = e.target.getAttribute('data-color') || e.target.style.backgroundColor || 'black';
-                
-                document.querySelectorAll('.color-box').forEach(box => box.classList.remove('active'));
-                e.target.classList.add('active');
-            });
-        });
-
+        // --- Drawing Logic ---
         function drawLine(x0, y0, x1, y1, color, size, emitting, mode) {
             ctx.beginPath();
             ctx.moveTo(x0, y0);
             ctx.lineTo(x1, y1);
-            ctx.strokeStyle = color;
-            ctx.lineWidth = size;
+            ctx.strokeStyle = (mode === 'erase') ? '#FFFFFF' : color;
+            ctx.lineWidth = (mode === 'erase') ? size * 5 : size;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
 
-            if (mode === 'erase') {
-                ctx.globalCompositeOperation = 'destination-out';
-                ctx.lineWidth = size * 6; 
-            } else {
-                ctx.globalCompositeOperation = 'source-over';
-            }
+            // Use 'destination-out' for transparent erasing, or 'source-over' for normal
+            ctx.globalCompositeOperation = (mode === 'erase') ? 'destination-out' : 'source-over';
 
             ctx.stroke();
             ctx.closePath();
@@ -106,87 +67,43 @@
             if (!emitting) return;
 
             socket.emit('drawing', {
-                x0: x0 / canvas.width,
-                y0: y0 / canvas.height,
-                x1: x1 / canvas.width,
-                y1: y1 / canvas.height,
-                color: color,
-                size: size,
-                room: activeRoom,
-                mode: mode
+                x0: x0 / canvas.width, y0: y0 / canvas.height,
+                x1: x1 / canvas.width, y1: y1 / canvas.height,
+                color: color, size: size,
+                room: activeRoom, mode: mode
             });
         }
 
-        function onMouseDown(e) {
+        canvas.addEventListener('mousedown', (e) => {
             drawing = true;
             const rect = canvas.getBoundingClientRect();
             current.x = e.clientX - rect.left;
             current.y = e.clientY - rect.top;
-        }
+        });
 
-        function onMouseMove(e) {
+        canvas.addEventListener('mousemove', (e) => {
             if (!drawing) return;
             const rect = canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
-
             drawLine(current.x, current.y, x, y, current.color, current.size, true, isEraser ? 'erase' : 'draw');
-            current.x = x;
-            current.y = y;
-        }
+            current.x = x; current.y = y;
+        });
 
-        function onMouseUp() {
-            if (!drawing) return;
-            drawing = false;
-        }
-
-        canvas.addEventListener('mousedown', onMouseDown, false);
-        canvas.addEventListener('mouseup', onMouseUp, false);
-        canvas.addEventListener('mouseout', onMouseUp, false);
-        canvas.addEventListener('mousemove', onMouseMove, false);
+        canvas.addEventListener('mouseup', () => drawing = false);
+        canvas.addEventListener('mouseout', () => drawing = false);
 
         socket.on('drawing', (data) => {
-            const w = canvas.width;
-            const h = canvas.height;
-            drawLine(data.x0 * w, data.y0 * h, data.x1 * w, data.y1 * h, data.color, data.size, false, data.mode);
+            drawLine(data.x0 * canvas.width, data.y0 * canvas.height, 
+                     data.x1 * canvas.width, data.y1 * canvas.height, 
+                     data.color, data.size, false, data.mode);
         });
 
-        const localClearBtn = document.getElementById('clear-whiteboard-btn');
-        if (localClearBtn) {
-            localClearBtn.addEventListener('click', () => {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                socket.emit('clear_whiteboard', { room: activeRoom });
-            });
-        }
-
-        socket.on('clear_whiteboard', () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Resize handler
+        window.addEventListener('resize', () => {
+            const temp = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            canvas.width = canvas.parentElement.clientWidth;
+            ctx.putImageData(temp, 0, 0);
         });
-
-        window.addEventListener('resize', onResize, false);
-        function onResize() {
-            // Check if the canvas is embedded inside the videocall wrapper view
-            const isEmbedded = !!document.querySelector('.videocall-wrapper');
-            
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width;
-            tempCanvas.height = canvas.height;
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.drawImage(canvas, 0, 0);
-
-            if (isEmbedded) {
-                // Sizing for video calling grid overlay setup
-                canvas.width = canvas.parentElement ? canvas.parentElement.clientWidth : 600;
-                canvas.height = 400;
-            } else {
-                // Standalone component window sizing layouts
-                const calculatedWidth = canvas.parentElement ? canvas.parentElement.clientWidth - 40 : 800;
-                canvas.width = calculatedWidth > 100 ? calculatedWidth : 800;
-                canvas.height = 500;
-            }
-            
-            ctx.drawImage(tempCanvas, 0, 0);
-        }
-        onResize();
     }, 100);
 })();

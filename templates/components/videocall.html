@@ -1,17 +1,21 @@
 <div class="videocall-wrapper"> 
     <div id="video-streams" class="video-grid"></div> 
     
-    <div id="whiteboard-container" class="whiteboard-container" style="display: none;">
+    <div id="whiteboard-container" style="display: none;">
         <div id="whiteboard-content">
             <canvas id="whiteboard-canvas"></canvas>
             <div id="whiteboard-controls" class="controls-bar">
-                <!-- Added color-picker class matching whiteboard.html logic -->
-                <div class="color-box color-picker active" data-color="#000000" style="background-color: black;"></div>
-                <div class="color-box color-picker" data-color="#FF0000" style="background-color: red;"></div>
-                <div class="color-box color-picker" data-color="#0000FF" style="background-color: blue;"></div>
-                <div class="color-box color-picker" data-color="#00FF00" style="background-color: green;"></div>
-                <div class="color-box color-picker" data-color="#FFFF00" style="background-color: yellow;"></div>
-                <div class="color-box color-picker" data-color="#A604E6" style="background-color: rgb(166, 4, 230);"></div> 
+                <!-- All your original colors perfectly preserved -->
+                <div class="color-box active" data-color="#000000" style="background-color: black;"></div>
+                <div class="color-box" data-color="#FF0000" style="background-color: red;"></div>
+                <div class="color-box" data-color="#0000FF" style="background-color: blue;"></div>
+                <div class="color-box" data-color="#00FF00" style="background-color: green;"></div>
+                <div class="color-box" data-color="#FFFF00" style="background-color: yellow;"></div>
+                <div class="color-box" data-color="#A604E6" style="background-color: rgb(166, 4, 230);"></div> 
+                
+                <!-- Added Eraser and Snapshot Download features directly into the overlay -->
+                <button id="eraser-btn" class="clear-btn" style="background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3);">🧽 Eraser Mode</button>
+                <button id="download-btn" class="clear-btn" style="background: #BB86FC; color: black;">📥 Download PNG</button>
                 <button id="clear-whiteboard-btn" class="clear-btn">Clear Whiteboard</button>
             </div>
         </div>
