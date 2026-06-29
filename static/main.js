@@ -287,7 +287,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.component-script, .component-style').forEach(el => el.remove());
     }
 
-    // UPDATED: Landing page with real-time relational analytics summary
     function loadHomePage() {
         clearContent();
         contentDiv.innerHTML = `
@@ -395,7 +394,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }).catch(error => console.error("Failed to load video call:", error));
     }
 
-    // UPDATED: Interactive To-Do list layout with integrated priority selectors and badges
     function loadTodo() {
         clearContent();
         
@@ -524,7 +522,6 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchTasks();
     }
 
-    // UPDATED: Standard template parser appended with canvas serialization and cache-busted snapshot hydration hooks
     function loadWhiteboard(roomId = null) {
         clearContent();
         fetch(`/components/whiteboard.html${roomId ? '?room_id=' + roomId : ''}`).then(res => {
@@ -579,8 +576,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.lucide) window.lucide.createIcons();
             
             const script = document.createElement('script');
-            // FIXED: Embedded string argument query token variations to bypass hard edge proxy caching loops
-            script.src = '/static/whiteboard/whiteboard.js?v=1.1'; 
+            // INCREMENTED: Updated cache-busting token to guarantee delivery of fresh selector parameters
+            script.src = '/static/whiteboard/whiteboard.js?v=1.4'; 
             script.className = 'component-script';
             document.body.appendChild(script);
 

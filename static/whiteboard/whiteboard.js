@@ -9,10 +9,10 @@
     const current = { color: 'black', size: 5 };
     const activeRoom = sessionStorage.getItem('VSR_roomName') || 'global';
 
-    // ROBUST UI SELECTOR UPGRADE: Finds the exact black configuration bar seen on screen
-    let controlsBar = document.querySelector('.whiteboard-container, #whiteboard-controls, .controls-bar');
+    // FIXED: Stronger target element matching rules that align cleanly with your whiteboard.html elements
+    let controlsBar = document.getElementById('whiteboard-controls') || document.querySelector('.controls-bar');
     if (!controlsBar) {
-        const clearBtn = document.querySelector('.whiteboard-container button') || Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Clear'));
+        const clearBtn = document.getElementById('clear-whiteboard-btn') || document.querySelector('.clear-btn');
         if (clearBtn) {
             controlsBar = clearBtn.parentElement;
         }
@@ -49,7 +49,17 @@
 
         // Client-Side Local Download Tool
         downloadBtn.addEventListener('click', () => {
-            const dataUrl = canvas.toDataURL('image/png');
+            // FIXED: Creating an internal canvas checkpoint to make sure drawings are saved over a solid white backdrop vector instead of a transparent layout
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = canvas.width;
+            exportCanvas.height = canvas.height;
+            const exportCtx = exportCanvas.getContext('2d');
+            
+            exportCtx.fillStyle = 'white';
+            exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+            exportCtx.drawImage(canvas, 0, 0);
+
+            const dataUrl = exportCanvas.toDataURL('image/png');
             const link = document.createElement('a');
             link.href = dataUrl;
             link.download = `study-room-whiteboard-${activeRoom}.png`;
@@ -60,11 +70,15 @@
     }
 
     // Color updates selector event mapping override
-    document.querySelectorAll('.color-picker, [data-color]').forEach(picker => {
+    document.querySelectorAll('.color-box, .color-picker, [data-color]').forEach(picker => {
         picker.addEventListener('click', (e) => {
             const eraserBtn = document.getElementById('eraser-btn');
             if (isEraser && eraserBtn) eraserBtn.click(); // Reset to draw mode if they choose a color
             current.color = e.target.getAttribute('data-color') || e.target.style.backgroundColor || 'black';
+            
+            // Add visual active state adjustment classes
+            document.querySelectorAll('.color-box').forEach(box => box.classList.remove('active'));
+            e.target.classList.add('active');
         });
     });
 
@@ -81,7 +95,7 @@
         // Advanced composite masking context rules
         if (mode === 'erase') {
             ctx.globalCompositeOperation = 'destination-out';
-            ctx.lineWidth = size * 4; // Make eraser slightly larger
+            ctx.lineWidth = size * 6; // Make eraser slightly larger for smoother erasing mechanics
         } else {
             ctx.globalCompositeOperation = 'source-over';
         }
@@ -141,6 +155,14 @@
     });
 
     // Handle global canvas clear events
+    const localClearBtn = document.getElementById('clear-whiteboard-btn');
+    if (localClearBtn) {
+        localClearBtn.addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            socket.emit('clear_whiteboard', { room: activeRoom });
+        });
+    }
+
     socket.on('clear_whiteboard', () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     });
@@ -154,8 +176,9 @@
         const tempCtx = tempCanvas.getContext('2d');
         tempCtx.drawImage(canvas, 0, 0);
 
-        canvas.width = canvas.parentElement.clientWidth || window.innerWidth * 0.8;
-        canvas.height = canvas.parentElement.clientHeight || window.innerHeight * 0.6;
+        // Fixed sizing metrics declaration rules
+        canvas.width = canvas.parentElement ? canvas.parentElement.clientWidth - 40 : 800;
+        canvas.height = 500; 
         
         ctx.drawImage(tempCanvas, 0, 0);
     }
