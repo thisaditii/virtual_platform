@@ -576,8 +576,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.lucide) window.lucide.createIcons();
             
             const script = document.createElement('script');
-            // INCREMENTED: Updated cache-busting token to guarantee delivery of fresh selector parameters
-            script.src = '/static/whiteboard/whiteboard.js?v=1.4'; 
+            // FIXED: Synchronized parameter caching metrics to explicitly fetch cache version v=1.6
+            script.src = '/static/whiteboard/whiteboard.js?v=1.6'; 
             script.className = 'component-script';
             document.body.appendChild(script);
 
