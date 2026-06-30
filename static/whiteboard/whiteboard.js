@@ -121,6 +121,10 @@ window.initializeWhiteboardSystem = function () {
         ctx.stroke();
         ctx.closePath();
 
+        // STATE BUG FIX: Always force-reset the global composite canvas state back to default drawing mode 
+        // after rendering a stroke so subsequent paths don't get locked into subtractive erasing.
+        ctx.globalCompositeOperation = 'source-over';
+
         if (!emitting) return;
 
         // Emit relative coordinates to avoid device resolution mismatch bugs
