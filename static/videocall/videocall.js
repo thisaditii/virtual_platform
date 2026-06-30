@@ -2,7 +2,6 @@ const APP_ID = "57c28707569f4c68ae05b7cdba68d43a";
 const TOKEN = null;
 const CHANNEL = sessionStorage.getItem('VSR_roomName');
 
-
 const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
 let localTracks = {
     videoTrack: null,
@@ -10,7 +9,6 @@ let localTracks = {
 };
 let remoteUsers = {};
 let localUID;
-
 
 const updateGridLayout = () => {
     const container = document.getElementById('video-streams');
@@ -38,7 +36,6 @@ const updateGridLayout = () => {
         container.classList.add(layoutClass);
     }
 };
-
 
 const handleUserPublished = async (user, mediaType) => {
     await client.subscribe(user, mediaType);
@@ -144,87 +141,8 @@ const toggleCamera = async () => {
     if(window.lucide) window.lucide.createIcons();
 };
 
-
-let socket;
-let canvas, ctx;
-let isDrawing = false;
-let lastX = 0, lastY = 0;
-let currentColor = '#000000';
+// --- Integrated Whiteboard Overlay Controller ---
 let whiteboardVisible = false;
-
-const setupWhiteboard = () => {
-    canvas = document.getElementById('whiteboard-canvas');
-    if (!canvas) {
-        console.error("Whiteboard canvas not found. Aborting setup.");
-        return;
-    }
-    ctx = canvas.getContext('2d');
-    canvas.width = canvas.parentElement.clientWidth;
-    canvas.height = canvas.parentElement.clientHeight;
-
-    socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
-
-    socket.on('connect', () => {
-        console.log('Socket connected to server');
-        socket.emit('join_whiteboard', { room: CHANNEL });
-    });
-
-    socket.on('drawing', data => {
-        draw(data.x0, data.y0, data.x1, data.y1, data.color);
-    });
-
-    socket.on('clear_whiteboard', () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-    });
-
-    canvas.addEventListener('mousedown', (e) => {
-        isDrawing = true;
-        const rect = canvas.getBoundingClientRect();
-        [lastX, lastY] = [e.clientX - rect.left, e.clientY - rect.top];
-    });
-    canvas.addEventListener('mousemove', (e) => {
-        if (!isDrawing) return;
-        const rect = canvas.getBoundingClientRect();
-        const [x, y] = [e.clientX - rect.left, e.clientY - rect.top];
-        socket.emit('drawing', {
-            room: CHANNEL,
-            x0: lastX,
-            y0: lastY,
-            x1: x,
-            y1: y,
-            color: currentColor
-        });
-        draw(lastX, lastY, x, y, currentColor);
-        [lastX, lastY] = [x, y];
-    });
-    canvas.addEventListener('mouseup', () => isDrawing = false);
-    canvas.addEventListener('mouseout', () => isDrawing = false);
-
-    const colorBoxes = document.querySelectorAll('.color-box');
-    colorBoxes.forEach(box => {
-        box.addEventListener('click', () => {
-            document.querySelector('.color-box.active')?.classList.remove('active');
-            box.classList.add('active');
-            currentColor = box.dataset.color;
-        });
-    });
-
-    document.getElementById('clear-whiteboard-btn').addEventListener('click', () => {
-        socket.emit('clear_whiteboard', { room: CHANNEL });
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-    });
-};
-
-const draw = (x0, y0, x1, y1, color) => {
-    ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.lineTo(x1, y1);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-    ctx.closePath();
-};
 
 const toggleWhiteboard = () => {
     const videoStreams = document.getElementById('video-streams');
@@ -236,8 +154,20 @@ const toggleWhiteboard = () => {
     } else {
         whiteboardContainer.style.display = 'flex';
         videoStreams.style.display = 'none';
-        if (!canvas) {
-            setupWhiteboard();
+        
+        // Dynamic Runtime Link: Fire our unified whiteboard system engine once elements are visible
+        if (typeof window.initializeWhiteboardSystem === 'function') {
+            window.initializeWhiteboardSystem();
+        } else {
+            // Fallback load script layer block if it hasn't parsed inside main single-page shell environment yet
+            const script = document.createElement('script');
+            script.src = '/static/whiteboard/whiteboard.js?v=' + Date.now();
+            script.onload = () => {
+                if (typeof window.initializeWhiteboardSystem === 'function') {
+                    window.initializeWhiteboardSystem();
+                }
+            };
+            document.body.appendChild(script);
         }
     }
     whiteboardVisible = !whiteboardVisible;
