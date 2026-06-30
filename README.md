@@ -2,7 +2,7 @@
 
 A high-performance, full-stack collaborative single-page application (SPA) featuring isolated real-time whiteboards, low-latency video conferencing, and automated task analytics built for remote study groups.
 
-## 🔗 Live Demo
+##  Live Demo
 * **Deployment Url:** https://virtualplatform.onrender.com
 
 ## 🛠️ Tech Stack
@@ -11,13 +11,13 @@ A high-performance, full-stack collaborative single-page application (SPA) featu
 * **Database & Infrastructure:** PostgreSQL (Production), SQLite (Local Dev), Agora.io RTC SDK, Git
 * **Security:** Cryptographic password hashing (Werkzeug), Flask-Login, Python-Dotenv
 
-## ✨ Key Features
+##  Key Features
 * **Real-Time Synchronized Whiteboard:** Engineered with HTML5 Canvas and WebSockets, utilizing room-scoped state separation to completely eliminate multi-user drawing collisions.
 * **Low-Latency Video Conferencing:** Integrated the Agora.io RTC SDK into a dynamic, fluid grid layout optimized to scale seamlessly with live participant updates.
 * **Data Persistence & Analytics:** Built an environment-aware database layer that automatically switches contexts between local SQLite and live cloud PostgreSQL, complete with an analytics engine aggregating high-priority tasks.
 * **Decoupled Architecture:** Enforces strict security boundaries by keeping session keys and environment configurations fully isolated from version history.
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # Clone the repository
