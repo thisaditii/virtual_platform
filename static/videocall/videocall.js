@@ -2,35 +2,24 @@ const APP_ID = "57c28707569f4c68ae05b7cdba68d43a";
 const TOKEN = null;
 const CHANNEL = sessionStorage.getItem('VSR_roomName');
 
-// MEMORY CLEANUP: Prevent background overlay sockets from multiplying
-if (window.videoCallSocketInstance) {
-    window.videoCallSocketInstance.disconnect();
-    window.videoCallSocketInstance = null;
-}
-
 const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
-let localTracks = {
-    videoTrack: null,
-    audioTrack: null
-};
+let localTracks = { videoTrack: null, audioTrack: null };
 let remoteUsers = {};
 let localUID;
 
+// Bind to window to share cleanly with whiteboard layout instances without thread interference
 if (!window.videoCallSocketInstance && typeof io !== 'undefined') {
     window.videoCallSocketInstance = io();
 }
 const videoSocket = window.videoCallSocketInstance || { emit: () => {}, on: () => {}, off: () => {} };
 
-videoSocket.off('toggle_whiteboard');
 videoSocket.emit('join_whiteboard', { room: CHANNEL });
 
 const updateGridLayout = () => {
     const container = document.getElementById('video-streams');
     if (!container) return;
-
     container.className = 'video-streams';
     const participantCount = container.children.length;
-    
     let layoutClass = '';
     if (participantCount === 1) layoutClass = 'layout-1';
     else if (participantCount === 2) layoutClass = 'layout-2';
@@ -38,14 +27,12 @@ const updateGridLayout = () => {
     else if (participantCount === 4) layoutClass = 'layout-4';
     else if (participantCount >= 5 && participantCount <= 6) layoutClass = 'layout-6';
     else if (participantCount > 6) layoutClass = 'layout-9';
-    
     if (layoutClass) container.classList.add(layoutClass);
 };
 
 const handleUserPublished = async (user, mediaType) => {
     await client.subscribe(user, mediaType);
     remoteUsers[user.uid] = user;
-
     let playerContainer = document.getElementById(`player-container-${user.uid}`);
     if (mediaType === 'video') {
         if (!playerContainer) {
@@ -74,14 +61,12 @@ const joinAndDisplayLocalStream = async () => {
     try {
         localUID = await client.join(APP_ID, CHANNEL, TOKEN, null);
         [localTracks.audioTrack, localTracks.videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
-
         const videoStreamsContainer = document.getElementById('video-streams');
         const localPlayerContainer = document.createElement('div');
         localPlayerContainer.id = `player-container-${localUID}`;
         localPlayerContainer.className = 'video-player';
         localPlayerContainer.innerHTML = `<p class="user-uid">${localUID} (You)</p>`;
         videoStreamsContainer.appendChild(localPlayerContainer);
-
         localTracks.videoTrack.play(localPlayerContainer);
         updateGridLayout();
         await client.publish(Object.values(localTracks));
@@ -129,8 +114,18 @@ const executeVisibilityToggle = (visible) => {
     if (whiteboardVisible) {
         whiteboardContainer.style.display = 'flex';
         videoStreams.style.display = 'none';
+        
         if (typeof window.initializeWhiteboardSystem === 'function') {
             window.initializeWhiteboardSystem();
+        } else {
+            const script = document.createElement('script');
+            script.src = '/static/whiteboard/whiteboard.js?v=' + Date.now();
+            script.onload = () => {
+                if (typeof window.initializeWhiteboardSystem === 'function') {
+                    window.initializeWhiteboardSystem();
+                }
+            };
+            document.body.appendChild(script);
         }
     } else {
         whiteboardContainer.style.display = 'none';
@@ -144,12 +139,14 @@ const toggleWhiteboard = () => {
     videoSocket.emit('toggle_whiteboard', { room: CHANNEL, visible: nextState });
 };
 
+videoSocket.off('toggle_whiteboard');
 videoSocket.on('toggle_whiteboard', (data) => {
     executeVisibilityToggle(data.visible);
 });
 
 (async () => {
     if (!CHANNEL) {
+        alert('Error: Room name not found. Redirecting to home.');
         window.location.href = '/';
         return;
     }
