@@ -1,25 +1,61 @@
-# Python specific ignores
+# ==========================================
 __pycache__/
 *.pyc
-.Python/
+*.pyo
+*.pyd
+.Python
 venv/
-.env # Local environment variables
+env/
+ENV/
+instance/
+.pytest_cache/
+.eggs/
+*.egg-info/
+dist/
 
-# Node.js / React specific ignores (from your todo app)
+# Local environment variables and secrets
+.env
+.flaskenv
+*.secret
+*.log
+
+# ==========================================
+# Node.js / Frontend Specific Ignores
+# ==========================================
 node_modules/
-build/ # If your React build outputs to a 'build' folder in the root, otherwise it's already under static/todo/build
-.parcel-cache/ # If you use Parcel bundler
-.webpack/ # If you use Webpack
+build/
+dist/
+.parcel-cache/
+.webpack/
+.eslintcache
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
 
-# Database ignores
-users.db # Your SQLite database file
+# ==========================================
+# Database Ignores
+# ==========================================
+users.db
+*.db-journal
+*.sqlite3
 
-# IDE specific ignores (VS Code)
+# ==========================================
+# IDE / Editor Specific Ignores
+# ==========================================
 .vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
 
-# Operating System junk
-.DS_Store # macOS specific
-Thumbs.db # Windows specific
+# ==========================================
+# Operating System Junk
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
