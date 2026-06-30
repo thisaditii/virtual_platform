@@ -32,7 +32,7 @@ window.initializeWhiteboardSystem = function () {
     const current = { color: 'black', size: 5 };
     const activeRoom = sessionStorage.getItem('VSR_roomName') || 'global';
 
-    // CRITICAL FIX: Ensure the socket immediately joins the room workspace upon initialization
+    // Ensure the socket immediately joins the room workspace upon initialization
     socket.emit('join_whiteboard', { room: activeRoom });
 
     // Set fallback baseline dimensions if container is temporarily hidden
@@ -42,7 +42,6 @@ window.initializeWhiteboardSystem = function () {
     canvas.style.cursor = 'crosshair';
 
     // --- Eraser Toggle Controller with Visual Cursor Update ---
-    // Clone buttons to completely wipe out old event listeners from previous view tracking states
     const freshEraserBtn = eraserBtn.cloneNode(true);
     eraserBtn.parentNode.replaceChild(freshEraserBtn, eraserBtn);
 
@@ -53,8 +52,6 @@ window.initializeWhiteboardSystem = function () {
             freshEraserBtn.textContent = '✏️ Draw Mode';
             freshEraserBtn.style.background = '#CF6679'; 
             freshEraserBtn.style.color = 'white';
-            
-            // Inline SVG data-uri custom cursor element injection mapping
             canvas.style.cursor = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' style='font-size:24px'><text y='24'>🧽</text></svg>"), auto`;
         } else {
             freshEraserBtn.textContent = '🧽 Eraser Mode';
@@ -101,33 +98,35 @@ window.initializeWhiteboardSystem = function () {
         });
     });
 
-    // --- Standard Stroke Core ---
+    // --- Core Drawing Core Pipeline ---
     function drawLine(x0, y0, x1, y1, color, size, emitting, mode) {
         ctx.beginPath();
         ctx.moveTo(x0, y0);
         ctx.lineTo(x1, y1);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = size;
+        
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
+        // RESOLVED CORRUPTION BUG: Force transparency composition variables 
+        // to stop incoming sync data from painting ghost artifacts on remote users
         if (mode === 'erase') {
             ctx.globalCompositeOperation = 'destination-out';
-            ctx.lineWidth = size * 8; 
+            ctx.strokeStyle = 'rgba(0,0,0,1)'; // Colors must be flat/ignored entirely when masking pixels out
+            ctx.lineWidth = size * 10;          // Wider area footprint for responsive tracking
         } else {
             ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size;
         }
 
         ctx.stroke();
         ctx.closePath();
 
-        // STATE BUG FIX: Always force-reset the global composite canvas state back to default drawing mode 
-        // after rendering a stroke so subsequent paths don't get locked into subtractive erasing.
+        // Safety fallback state normalization reset
         ctx.globalCompositeOperation = 'source-over';
 
         if (!emitting) return;
 
-        // Emit relative coordinates to avoid device resolution mismatch bugs
         socket.emit('drawing', {
             x0: x0 / canvas.width,
             y0: y0 / canvas.height,
