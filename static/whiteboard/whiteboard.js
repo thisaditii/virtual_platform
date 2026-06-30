@@ -1,44 +1,48 @@
-// Export a clean initializer function to the global scope to bypass single-page application race conditions
+// MEMORY CLEANUP: Prevent duplicate background websocket connections from piling up
+if (window.whiteboardSocketInstance) {
+    window.whiteboardSocketInstance.disconnect();
+    window.whiteboardSocketInstance = null;
+}
+
 window.initializeWhiteboardSystem = function () {
-    // Determine active container view context exactly
     const isEmbedded = !!document.querySelector('.videocall-wrapper');
     const container = isEmbedded ? document.querySelector('.videocall-wrapper') : document.getElementById('whiteboard-container');
     
-    if (!container) {
-        console.warn("Whiteboard container wrapper not ready yet.");
-        return;
-    }
+    if (!container) return;
 
     const canvas = container.querySelector('canvas');
     const eraserBtn = container.querySelector('#eraser-btn');
     const downloadBtn = container.querySelector('#download-btn');
     const clearBtn = container.querySelector('#clear-whiteboard-btn');
 
-    if (!canvas || !eraserBtn || !downloadBtn) {
-        console.warn("Whiteboard UI nodes missing inside current view wrapper.");
-        return;
-    }
+    if (!canvas || !eraserBtn || !downloadBtn) return;
 
     const ctx = canvas.getContext('2d');
-    let socket;
-    if (typeof io !== 'undefined') {
-        socket = io();
-    } else {
-        socket = { emit: () => {}, on: () => {}, off: () => {} };
+    
+    // Safely instantiate or assign global instance socket connection
+    if (!window.whiteboardSocketInstance && typeof io !== 'undefined') {
+        window.whiteboardSocketInstance = io();
     }
+    const socket = window.whiteboardSocketInstance || { emit: () => {}, on: () => {}, off: () => {} };
+
+    // Flush all active historical socket listeners completely
+    socket.off('drawing');
+    socket.off('clear_whiteboard');
 
     let drawing = false;
     let isEraser = false;
     const current = { color: 'black', size: 5, x: 0, y: 0 };
     const activeRoom = sessionStorage.getItem('VSR_roomName') || 'global';
 
-    // Ensure the socket immediately joins the room workspace upon initialization
     socket.emit('join_whiteboard', { room: activeRoom });
 
-    // Set baseline dimensions securely
     canvas.width = isEmbedded ? (container.clientWidth || 600) : (container.clientWidth - 40 || 800);
     canvas.height = isEmbedded ? 400 : 500;
     canvas.style.cursor = 'crosshair';
+
+    // Establish white baseline backdrop on load so white ink rendering acts as a clean eraser mask
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // --- Eraser Toggle Controller ---
     const freshEraserBtn = eraserBtn.cloneNode(true);
@@ -96,28 +100,26 @@ window.initializeWhiteboardSystem = function () {
         });
     });
 
-    // --- Function 1: Handle LOCAL operations strictly ---
+    // --- Isolated Local Draw Engine ---
     function localDrawLine(x0, y0, x1, y1, color, size, mode) {
-        ctx.save(); // Save pristine canvas state machine
+        ctx.save();
         ctx.beginPath();
         ctx.moveTo(x0, y0);
         ctx.lineTo(x1, y1);
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
+        ctx.globalCompositeOperation = 'source-over';
 
         if (mode === 'erase') {
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.lineWidth = size * 10;
-            ctx.stroke();
+            ctx.strokeStyle = '#FFFFFF'; 
+            ctx.lineWidth = size * 12;
         } else {
-            ctx.globalCompositeOperation = 'source-over';
             ctx.strokeStyle = color;
             ctx.lineWidth = size;
-            ctx.stroke();
         }
-        ctx.restore(); // Restore state instantly to clear operations
+        ctx.stroke();
+        ctx.restore();
 
-        // Send relative scaling details outward
         socket.emit('drawing', {
             x0: x0 / canvas.width,
             y0: y0 / canvas.height,
@@ -130,26 +132,25 @@ window.initializeWhiteboardSystem = function () {
         });
     }
 
-    // --- Function 2: Handle REMOTE incoming broadcast operations strictly ---
+    // --- Isolated Remote Sync Engine ---
     function remoteDrawLine(x0, y0, x1, y1, color, size, mode) {
-        ctx.save(); // Save state to avoid crossing variables with your active brush pointer
+        ctx.save();
         ctx.beginPath();
         ctx.moveTo(x0, y0);
         ctx.lineTo(x1, y1);
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
+        ctx.globalCompositeOperation = 'source-over';
 
         if (mode === 'erase') {
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.lineWidth = size * 10;
-            ctx.stroke();
+            ctx.strokeStyle = '#FFFFFF'; 
+            ctx.lineWidth = size * 12;
         } else {
-            ctx.globalCompositeOperation = 'source-over';
             ctx.strokeStyle = color;
             ctx.lineWidth = size;
-            ctx.stroke();
         }
-        ctx.restore(); // Wipe temporary tools away
+        ctx.stroke();
+        ctx.restore();
     }
 
     function onMouseDown(e) {
@@ -175,8 +176,6 @@ window.initializeWhiteboardSystem = function () {
     canvas.addEventListener('mouseout', () => { drawing = false; }, false);
     canvas.addEventListener('mousemove', onMouseMove, false);
 
-    // Sync incoming updates safely into the isolated remote worker function
-    socket.off('drawing');
     socket.on('drawing', (data) => {
         const w = canvas.width;
         const h = canvas.height;
@@ -187,14 +186,15 @@ window.initializeWhiteboardSystem = function () {
         const freshClearBtn = clearBtn.cloneNode(true);
         clearBtn.parentNode.replaceChild(freshClearBtn, clearBtn);
         freshClearBtn.addEventListener('click', () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             socket.emit('clear_whiteboard', { room: activeRoom });
         });
     }
 
-    socket.off('clear_whiteboard');
     socket.on('clear_whiteboard', () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
     });
 };
 
