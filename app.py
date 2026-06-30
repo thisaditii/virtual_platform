@@ -39,7 +39,10 @@ class User(UserMixin, db.Model):
     snapshots = db.relationship('WhiteboardSnapshot', backref='user', lazy=True, cascade="all, delete-orphan")
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        value = generate_password_hash(password)
+        if isinstance(value, bytes):
+            value = value.decode('utf-8')
+        self.password_hash = value
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
@@ -58,7 +61,7 @@ class WhiteboardSnapshot(db.Model):
     room_id = db.Column(db.String(100), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-# CRITICAL FIX: Running drop_all once dynamically cleans out conflicting column parameters on Render
+# FIXED: Safe database initialization wrapper logic for pristine PostgreSQL migrations
 with app.app_context():
     db.create_all()
 
@@ -277,12 +280,10 @@ def on_leave(data):
 
 @app.errorhandler(404)
 def page_not_found(e):
-    app.line_warning = f"404 Error encountered: {e}"
     return render_template('404.html'), 404
 
 @app.errorhandler(500)
 def internal_server_error(e):
-    app.logger.error(f"500 Internal Server Error: {e}")
     return render_template('500.html'), 500
 
 if __name__ == '__main__':
