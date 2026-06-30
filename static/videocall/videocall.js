@@ -10,6 +10,12 @@ let localTracks = {
 let remoteUsers = {};
 let localUID;
 
+// Initialize the WebSocket listener instance for managing call room UI states
+const videoSocket = (typeof io !== 'undefined') ? io() : { emit: () => {}, on: () => {} };
+
+// Ensure call participant enters the whiteboard room connection stream
+videoSocket.emit('join_whiteboard', { room: CHANNEL });
+
 const updateGridLayout = () => {
     const container = document.getElementById('video-streams');
     if (!container) return;
@@ -141,25 +147,22 @@ const toggleCamera = async () => {
     if(window.lucide) window.lucide.createIcons();
 };
 
-// --- Integrated Whiteboard Overlay Controller ---
+// --- Synchronized Whiteboard Overlay Controller ---
 let whiteboardVisible = false;
 
-const toggleWhiteboard = () => {
+const executeVisibilityToggle = (visible) => {
     const videoStreams = document.getElementById('video-streams');
     const whiteboardContainer = document.getElementById('whiteboard-container');
     
+    whiteboardVisible = visible;
     if (whiteboardVisible) {
-        whiteboardContainer.style.display = 'none';
-        videoStreams.style.display = 'grid';
-    } else {
         whiteboardContainer.style.display = 'flex';
         videoStreams.style.display = 'none';
         
-        // Dynamic Runtime Link: Fire our unified whiteboard system engine once elements are visible
+        // Execute unified drawing system canvas runtime mapping configuration
         if (typeof window.initializeWhiteboardSystem === 'function') {
             window.initializeWhiteboardSystem();
         } else {
-            // Fallback load script layer block if it hasn't parsed inside main single-page shell environment yet
             const script = document.createElement('script');
             script.src = '/static/whiteboard/whiteboard.js?v=' + Date.now();
             script.onload = () => {
@@ -169,9 +172,24 @@ const toggleWhiteboard = () => {
             };
             document.body.appendChild(script);
         }
+    } else {
+        whiteboardContainer.style.display = 'none';
+        videoStreams.style.display = 'grid';
     }
-    whiteboardVisible = !whiteboardVisible;
 };
+
+const toggleWhiteboard = () => {
+    const nextState = !whiteboardVisible;
+    executeVisibilityToggle(nextState);
+    
+    // Broadcast state toggle command vector over WebSockets to sync remote clients
+    videoSocket.emit('toggle_whiteboard', { room: CHANNEL, visible: nextState });
+};
+
+// Catch incoming whiteboard toggle updates from peers in the room session
+videoSocket.on('toggle_whiteboard', (data) => {
+    executeVisibilityToggle(data.visible);
+});
 
 (async () => {
     if (!CHANNEL) {

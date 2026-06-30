@@ -261,6 +261,13 @@ def handle_clear(data):
     room = data['room']
     emit('clear_whiteboard', {}, room=room)
 
+@socketio.on('toggle_whiteboard')
+def handle_toggle_whiteboard(data):
+    if not current_user.is_authenticated:
+        return
+    room = data['room']
+    emit('toggle_whiteboard', data, room=room, include_self=False)
+
 @socketio.on('leave_whiteboard')
 def on_leave(data):
     if not current_user.is_authenticated:

@@ -20,12 +20,20 @@ window.initializeWhiteboardSystem = function () {
     }
 
     const ctx = canvas.getContext('2d');
-    let socket = (typeof io !== 'undefined') ? io() : { emit: () => {}, on: () => {} };
+    let socket;
+    if (typeof io !== 'undefined') {
+        socket = io();
+    } else {
+        socket = { emit: () => {}, on: () => {}, off: () => {} };
+    }
 
     let drawing = false;
     let isEraser = false;
     const current = { color: 'black', size: 5 };
     const activeRoom = sessionStorage.getItem('VSR_roomName') || 'global';
+
+    // CRITICAL FIX: Ensure the socket immediately joins the room workspace upon initialization
+    socket.emit('join_whiteboard', { room: activeRoom });
 
     // Set fallback baseline dimensions if container is temporarily hidden
     canvas.width = isEmbedded ? (container.clientWidth || 600) : (container.clientWidth - 40 || 800);
@@ -115,6 +123,7 @@ window.initializeWhiteboardSystem = function () {
 
         if (!emitting) return;
 
+        // Emit relative coordinates to avoid device resolution mismatch bugs
         socket.emit('drawing', {
             x0: x0 / canvas.width,
             y0: y0 / canvas.height,
