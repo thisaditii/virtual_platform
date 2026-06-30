@@ -545,7 +545,6 @@ document.addEventListener('DOMContentLoaded', () => {
             script.className = 'component-script';
             document.body.appendChild(script);
 
-            // Force dynamic template initialization once script is parsed
             script.onload = function() {
                 if (typeof window.initializeWhiteboardSystem === 'function') {
                     window.initializeWhiteboardSystem();

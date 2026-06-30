@@ -1,13 +1,10 @@
 const APP_ID = "57c28707569f4c68ae05b7cdba68d43a";
 const TOKEN = null;
 const CHANNEL = sessionStorage.getItem('VSR_roomName');
-
 const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
 let localTracks = { videoTrack: null, audioTrack: null };
 let remoteUsers = {};
 let localUID;
-
-// Bind to window to share cleanly with whiteboard layout instances without thread interference
 if (!window.videoCallSocketInstance && typeof io !== 'undefined') {
     window.videoCallSocketInstance = io();
 }

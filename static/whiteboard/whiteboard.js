@@ -14,7 +14,6 @@
 
         const ctx = canvas.getContext('2d');
         
-        // Reuse an open socket instance if it exists, otherwise establish a single clean one
         let socket = window.videoCallSocketInstance || (typeof io !== 'undefined' ? io() : { emit: () => {}, on: () => {}, off: () => {} });
 
         let drawing = false;
@@ -22,14 +21,12 @@
         const current = { color: 'black', size: 5, x: 0, y: 0 };
         const activeRoom = sessionStorage.getItem('VSR_roomName') || 'global';
 
-        // Direct room synchronization call
         socket.emit('join_whiteboard', { room: activeRoom });
 
         canvas.width = isEmbedded ? (container.clientWidth || 600) : (container.clientWidth - 40 || 800);
         canvas.height = isEmbedded ? 400 : 500;
         canvas.style.cursor = 'crosshair';
 
-        // --- Eraser Toggle Mechanics ---
         if (eraserBtn) {
             const freshEraserBtn = eraserBtn.cloneNode(true);
             eraserBtn.parentNode.replaceChild(freshEraserBtn, eraserBtn);
@@ -51,7 +48,6 @@
             });
         }
 
-        // --- Snapshot Export Processing ---
         if (downloadBtn) {
             const freshDownloadBtn = downloadBtn.cloneNode(true);
             downloadBtn.parentNode.replaceChild(freshDownloadBtn, downloadBtn);
@@ -77,7 +73,6 @@
             });
         }
 
-        // --- Color Palette Interceptor ---
         container.querySelectorAll('.color-box').forEach(picker => {
             picker.addEventListener('click', (e) => {
                 const embeddedEraser = container.querySelector('#eraser-btn');
@@ -90,7 +85,6 @@
             });
         });
 
-        // --- Core Unified Path Engine ---
         function drawLine(x0, y0, x1, y1, color, size, emitting, mode) {
             ctx.beginPath();
             ctx.moveTo(x0, y0);
@@ -110,7 +104,6 @@
             ctx.stroke();
             ctx.closePath();
             
-            // CRITICAL FIX: Instantly restore operation properties so subsequent lines don't corrupt
             ctx.globalCompositeOperation = 'source-over';
 
             if (!emitting) return;

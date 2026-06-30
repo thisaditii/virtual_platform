@@ -23,19 +23,14 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = '/'
 
-# Configured to threading mode for optimal Gunicorn web layer compatibility
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
-# ==========================================
-# DATABASE MODELS
-# ==========================================
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    # Relationship to automatically query user tasks
     todos = db.relationship('TodoItem', backref='user', lazy=True, cascade="all, delete-orphan")
-    # UPDATED: Added relationship relationship cascade for persistent canvas snapshots
+
     snapshots = db.relationship('WhiteboardSnapshot', backref='user', lazy=True, cascade="all, delete-orphan")
 
     def set_password(self, password):
@@ -51,17 +46,15 @@ class TodoItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     task = db.Column(db.String(200), nullable=False)
     completed = db.Column(db.Boolean, default=False)
-    priority = db.Column(db.String(20), default='Medium', nullable=False)  # FIXED: Added priority tracking column
+    priority = db.Column(db.String(20), default='Medium', nullable=False)  
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-# UPDATED: Whiteboard Snapshot persistence tracking model setup
 class WhiteboardSnapshot(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    image_data = db.Column(db.Text, nullable=False)  # Stores serialized base64 string stream vectors
+    image_data = db.Column(db.Text, nullable=False)  
     room_id = db.Column(db.String(100), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-# FIXED: Safe database initialization wrapper logic for pristine PostgreSQL migrations
 with app.app_context():
     db.create_all()
 
@@ -69,9 +62,6 @@ with app.app_context():
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# ==========================================
-# AUTHENTICATION ENDPOINTS
-# ==========================================
 @app.route('/api/signup', methods=['POST'])
 def signup_api():
     data = request.get_json()
@@ -117,21 +107,17 @@ def logout_api():
 def check_login_status():
     return jsonify({'logged_in': current_user.is_authenticated}), 200
 
-# ==========================================
-# TO-DO API PERSISTENCE BACKEND ENDPOINTS
-# ==========================================
 @app.route('/api/todos', methods=['GET', 'POST'])
 @login_required
 def manage_todos():
     if request.method == 'GET':
         user_todos = TodoItem.query.filter_by(user_id=current_user.id).all()
-        # FIXED: Returning priority properties alongside standard structural payloads
         return jsonify([{'id': t.id, 'task': t.task, 'completed': t.completed, 'priority': t.priority} for t in user_todos]), 200
         
     elif request.method == 'POST':
         data = request.get_json() or {}
         task_text = data.get('task')
-        task_priority = data.get('priority', 'Medium')  # FIXED: Capture priority argument defaulting to Medium
+        task_priority = data.get('priority', 'Medium') 
         
         if not task_text:
             return jsonify({'message': 'Task contents cannot be blank'}), 400
@@ -157,7 +143,6 @@ def alter_todo(todo_id):
         db.session.commit()
         return jsonify({'message': 'Task removed successfully.'}), 200
 
-# FIXED: Added aggregated metric endpoints to drive the Home Screen UI dashboard metrics
 @app.route('/api/todos/analytics', methods=['GET'])
 @login_required
 def get_todo_analytics():
@@ -174,9 +159,6 @@ def get_todo_analytics():
         'total_pending': total_pending
     }), 200
 
-# ==========================================
-# WHITEBOARD PERSISTENCE ENDPOINTS
-# ==========================================
 @app.route('/api/whiteboard/save', methods=['POST'])
 @login_required
 def save_whiteboard():
@@ -208,9 +190,6 @@ def load_whiteboard_state():
         return jsonify({'image_data': snapshot.image_data}), 200
     return jsonify({'image_data': None}), 200
 
-# ==========================================
-# VIEWS & TEMPLATES
-# ==========================================
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -240,9 +219,6 @@ def get_whiteboard():
 def whiteboard(room_id):
     return render_template('components/whiteboard.html', room_id=room_id)
 
-# ==========================================
-# SOCKETS & GLOBAL ERROR HANDLING
-# ==========================================
 @socketio.on('join_whiteboard')
 def on_join(data):
     if not current_user.is_authenticated:
