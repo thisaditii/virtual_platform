@@ -29,19 +29,18 @@ window.initializeWhiteboardSystem = function () {
 
     let drawing = false;
     let isEraser = false;
-    const current = { color: 'black', size: 5 };
+    const current = { color: 'black', size: 5, x: 0, y: 0 };
     const activeRoom = sessionStorage.getItem('VSR_roomName') || 'global';
 
     // Ensure the socket immediately joins the room workspace upon initialization
     socket.emit('join_whiteboard', { room: activeRoom });
 
-    // Set fallback baseline dimensions if container is temporarily hidden
+    // Set baseline dimensions securely
     canvas.width = isEmbedded ? (container.clientWidth || 600) : (container.clientWidth - 40 || 800);
     canvas.height = isEmbedded ? 400 : 500;
-
     canvas.style.cursor = 'crosshair';
 
-    // --- Eraser Toggle Controller with Visual Cursor Update ---
+    // --- Eraser Toggle Controller ---
     const freshEraserBtn = eraserBtn.cloneNode(true);
     eraserBtn.parentNode.replaceChild(freshEraserBtn, eraserBtn);
 
@@ -61,13 +60,12 @@ window.initializeWhiteboardSystem = function () {
         }
     });
 
-    // --- Snapshot / Save PNG Link System ---
+    // --- Snapshot Download System ---
     const freshDownloadBtn = downloadBtn.cloneNode(true);
     downloadBtn.parentNode.replaceChild(freshDownloadBtn, downloadBtn);
 
     freshDownloadBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        
         const exportCanvas = document.createElement('canvas');
         exportCanvas.width = canvas.width;
         exportCanvas.height = canvas.height;
@@ -98,35 +96,28 @@ window.initializeWhiteboardSystem = function () {
         });
     });
 
-    // --- Core Drawing Core Pipeline ---
-    function drawLine(x0, y0, x1, y1, color, size, emitting, mode) {
+    // --- Function 1: Handle LOCAL operations strictly ---
+    function localDrawLine(x0, y0, x1, y1, color, size, mode) {
+        ctx.save(); // Save pristine canvas state machine
         ctx.beginPath();
         ctx.moveTo(x0, y0);
         ctx.lineTo(x1, y1);
-        
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
-        // RESOLVED CORRUPTION BUG: Force transparency composition variables 
-        // to stop incoming sync data from painting ghost artifacts on remote users
         if (mode === 'erase') {
             ctx.globalCompositeOperation = 'destination-out';
-            ctx.strokeStyle = 'rgba(0,0,0,1)'; // Colors must be flat/ignored entirely when masking pixels out
-            ctx.lineWidth = size * 10;          // Wider area footprint for responsive tracking
+            ctx.lineWidth = size * 10;
+            ctx.stroke();
         } else {
             ctx.globalCompositeOperation = 'source-over';
             ctx.strokeStyle = color;
             ctx.lineWidth = size;
+            ctx.stroke();
         }
+        ctx.restore(); // Restore state instantly to clear operations
 
-        ctx.stroke();
-        ctx.closePath();
-
-        // Safety fallback state normalization reset
-        ctx.globalCompositeOperation = 'source-over';
-
-        if (!emitting) return;
-
+        // Send relative scaling details outward
         socket.emit('drawing', {
             x0: x0 / canvas.width,
             y0: y0 / canvas.height,
@@ -137,6 +128,28 @@ window.initializeWhiteboardSystem = function () {
             room: activeRoom,
             mode: mode
         });
+    }
+
+    // --- Function 2: Handle REMOTE incoming broadcast operations strictly ---
+    function remoteDrawLine(x0, y0, x1, y1, color, size, mode) {
+        ctx.save(); // Save state to avoid crossing variables with your active brush pointer
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        if (mode === 'erase') {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.lineWidth = size * 10;
+            ctx.stroke();
+        } else {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size;
+            ctx.stroke();
+        }
+        ctx.restore(); // Wipe temporary tools away
     }
 
     function onMouseDown(e) {
@@ -152,26 +165,22 @@ window.initializeWhiteboardSystem = function () {
         const x = (e.clientX - rect.left) * (canvas.width / rect.width);
         const y = (e.clientY - rect.top) * (canvas.height / rect.height);
 
-        drawLine(current.x, current.y, x, y, current.color, current.size, true, isEraser ? 'erase' : 'draw');
+        localDrawLine(current.x, current.y, x, y, current.color, current.size, isEraser ? 'erase' : 'draw');
         current.x = x;
         current.y = y;
     }
 
-    function onMouseUp() {
-        if (!drawing) return;
-        drawing = false;
-    }
-
     canvas.addEventListener('mousedown', onMouseDown, false);
-    canvas.addEventListener('mouseup', onMouseUp, false);
-    canvas.addEventListener('mouseout', onMouseUp, false);
+    canvas.addEventListener('mouseup', () => { drawing = false; }, false);
+    canvas.addEventListener('mouseout', () => { drawing = false; }, false);
     canvas.addEventListener('mousemove', onMouseMove, false);
 
+    // Sync incoming updates safely into the isolated remote worker function
     socket.off('drawing');
     socket.on('drawing', (data) => {
         const w = canvas.width;
         const h = canvas.height;
-        drawLine(data.x0 * w, data.y0 * h, data.x1 * w, data.y1 * h, data.color, data.size, false, data.mode);
+        remoteDrawLine(data.x0 * w, data.y0 * h, data.x1 * w, data.y1 * h, data.color, data.size, data.mode);
     });
 
     if (clearBtn) {
@@ -189,7 +198,6 @@ window.initializeWhiteboardSystem = function () {
     });
 };
 
-// Auto-run if elements are already loaded natively
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
     window.initializeWhiteboardSystem();
 }
