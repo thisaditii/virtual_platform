@@ -17,3 +17,4 @@ simplejson==3.19.2
 typing_extensions==4.12.2
 Werkzeug==3.0.3
 wsproto==1.2.0
+python-dotenv
