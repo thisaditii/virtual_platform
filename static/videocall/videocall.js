@@ -10,7 +10,7 @@ let localTracks = {
 let remoteUsers = {};
 let localUID;
 
-// Initialize the WebSocket listener instance for managing call room UI states
+// Initialize the WebSocket listener instance for managing call room UI states strictly
 const videoSocket = (typeof io !== 'undefined') ? io() : { emit: () => {}, on: () => {} };
 
 // Ensure call participant enters the whiteboard room connection stream
@@ -159,7 +159,7 @@ const executeVisibilityToggle = (visible) => {
         whiteboardContainer.style.display = 'flex';
         videoStreams.style.display = 'none';
         
-        // Execute unified drawing system canvas runtime mapping configuration
+        // Execute unified drawing system canvas runtime mapping configuration securely
         if (typeof window.initializeWhiteboardSystem === 'function') {
             window.initializeWhiteboardSystem();
         } else {
@@ -187,6 +187,7 @@ const toggleWhiteboard = () => {
 };
 
 // Catch incoming whiteboard toggle updates from peers in the room session
+videoSocket.off('toggle_whiteboard');
 videoSocket.on('toggle_whiteboard', (data) => {
     executeVisibilityToggle(data.visible);
 });
